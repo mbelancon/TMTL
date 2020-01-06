@@ -26,15 +26,25 @@ Time  Intensity
 ....  .....
 
 ds is the thermal diffusivity of the sample
+
 ths is the amplitude of the sample signal
+
 thf is the amplitude of the fluid signal
+
 m, w0 and v are geometrical parameters of the experimental setup, as described in the reference [1].
+
 l is the sample's thickness
+
 df is the thermal diffusivity of the fluid
+
 cs is the specific heat of the sample
+
 cf is the specific hear of the fluid
+
 dens is the mass density of the sample
+
 denf is the mass density of the fluid
+
 
 
 #References
