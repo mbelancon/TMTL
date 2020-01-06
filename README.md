@@ -13,10 +13,15 @@ and used like this:
 
 where datatofit is the file containing the data to be fitter, which should be in the form:
 Time  Intensity
+
 0.	  1.
+
 0.002	1.0121889283900456
+
 0.004	1.0218384966988319
+
 0.006	1.0289487049263586
+
 ....  .....
 
 ds is the thermal diffusivity of the sample
