@@ -12,6 +12,7 @@ and used like this:
 ./tllam datatofit ds ths thf m w0 v l df cs cf dens denf
 
 where datatofit is the file containing the data to be fitter, which should be in the form:
+
 Time  Intensity
 
 0.	  1.
