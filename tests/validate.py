@@ -52,7 +52,7 @@ for key, ref, upd in CASES:
     m = MODELS[key]
     p = m.defaults()
     p.update(upd)
-    r = np.loadtxt(REF / ref)
+    r = np.loadtxt(REF / ref, encoding="utf-8")
     t = np.ascontiguousarray(r[:, 0])
     I = m.intensity(t, p)
     I2 = m.intensity(t, p, Accuracy().scaled(2))
@@ -104,7 +104,7 @@ for key, e in worst.items():
 #    deve achar sempre o mesmo mínimo, sem depender de sorte.
 from tlfit.optim import FitProblem, make_free, run_fit  # noqa: E402
 
-dat = np.loadtxt(ROOT / "tlfit" / "examples" / "tllam_amostra_agua.dat")
+dat = np.loadtxt(ROOT / "tlfit" / "examples" / "tllam_amostra_agua.dat", encoding="utf-8")
 m = MODELS["tllam"]
 p = m.defaults()
 p.update(df=1.45e-7, cf=4182, denf=998, nf=1.33, d=5e-7, ths=4, thf=0)

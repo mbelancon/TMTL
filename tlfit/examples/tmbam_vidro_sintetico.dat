@@ -1,4 +1,4 @@
-# Transiente sintético: TM-BAM, vidro LSCAS 3,5% TiO2 (A_e = 1061 1/m); d = 6e-07, th = -150; ruído 3e-4
+# Transiente sintetico: TM-BAM, vidro LSCAS 3,5% TiO2 (A_e = 1061 1/m); d = 6e-07, th = -150; ruido 3e-4
 # tlfit: modelo=tmbam m=71 w0=4.4e-05 v=5.2 ae=1061 of=0
 0 0.999548
 0.0004 0.997954

@@ -1,4 +1,4 @@
-# Transiente sintético: TL de Shen, vidro soda-cal com Fe (Baesso et al. 1994, fig. 4); d = 4.98e-07, th = -0.104; ruído 3e-4
+# Transiente sintetico: TL de Shen, vidro soda-cal com Fe (Baesso et al. 1994, fig. 4); d = 4.98e-07, th = -0.104; ruido 3e-4
 # tlfit: modelo=tlshen m=51.4 w0=4.21e-05 v=3.83
 0 1.000537
 3.2e-05 1.000512

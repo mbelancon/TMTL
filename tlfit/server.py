@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import re
+import unicodedata
 import threading
 import time
 import traceback
@@ -149,6 +150,10 @@ class Job:
                 elapsed=time.time() - self.started))
 
 
+def _ascii(s):
+    return unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode()
+
+
 def _model_info():
     out = []
     for m in MODELS.values():
@@ -203,8 +208,10 @@ class Handler(BaseHTTPRequestHandler):
                     extra = dict(model=hdr.group(1), params={
                         k: float(v) for k, v in re.findall(r"(\w+)=([-+0-9.eE]+)(?:\s|$)", hdr.group(2))})
                     pr = re.search(r"preset=(\S+)", hdr.group(2))
-                    if pr:
-                        extra["preset"] = pr.group(1)
+                    if pr:   # os arquivos de exemplo são ASCII: "Agua" casa com "Água"
+                        want = _ascii(pr.group(1)).lower()
+                        extra["preset"] = next((k for k in MODELS[hdr.group(1)].presets
+                                                if _ascii(k).lower() == want), pr.group(1))
                 return self._send(200, dict(name=name, text=text, **extra))
             return self._send(404, {"error": "exemplo não encontrado"})
         if path == "/api/ping":
@@ -216,7 +223,7 @@ class Handler(BaseHTTPRequestHandler):
             base = Path(__file__).parent / "examples"
             out = []
             for d in sorted(p for p in base.iterdir() if p.is_dir() and p.name.startswith("serie_")):
-                out.append(dict(name=d.name, files=[dict(name=f.name, text=f.read_text())
+                out.append(dict(name=d.name, files=[dict(name=f.name, text=f.read_text(encoding="utf-8", errors="replace"))
                                                     for f in sorted(d.glob("*.dat"))]))
             return self._send(200, out)
         if path.startswith("/api/batch/"):

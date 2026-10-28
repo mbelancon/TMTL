@@ -1,4 +1,4 @@
-# Transiente sintético: TM amostra finita, vidro CAS:Er de 0,94 mm; d = 5e-07, th = -150; ruído 3e-4
+# Transiente sintetico: TM amostra finita, vidro CAS:Er de 0,94 mm; d = 5e-07, th = -150; ruido 3e-4
 # tlfit: modelo=tmfinito m=71 w0=4.4e-05 v=5.2 l=0.00094 of=0
 0 0.999874
 0.0004 0.999013
