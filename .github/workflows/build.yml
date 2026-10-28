@@ -26,6 +26,12 @@ jobs:
         run: |
           python -m pip install numpy scipy
           python tests/validate.py
+      - name: Instalação como pacote (pip install .)
+        shell: pwsh
+        run: |
+          python -m pip install .
+          python -c "import importlib.metadata as m, tlfit.server; print('tlfit', m.version('tlfit'), '| licença:', m.metadata('tlfit').get('License-Expression'))"
+          tlfit --help
       - name: Montar e testar a versão portátil
         shell: pwsh
         run: ./ferramentas/montar_portatil.ps1 -Saida "$env:RUNNER_TEMP\portatil" -Python (Get-Command python).Source
