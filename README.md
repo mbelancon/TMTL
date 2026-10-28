@@ -270,3 +270,15 @@ print(res["params"]["d"], res["sigma"]["d"])
 
 Referência do modelo TLLAM: L. C. Malacarne et al., *Appl. Spectrosc.* **65**, 99 (2011),
 doi:10.1366/10-06096.
+
+## Licença
+
+Copyright © Marcos P. Belançon e colaboradores.
+
+Este programa é software livre, distribuído sob a **GNU General Public License, versão 3 ou
+posterior** (GPL-3.0-or-later): pode ser usado, estudado, modificado e redistribuído, desde que
+versões modificadas também sejam distribuídas sob a GPL. O texto completo está em
+[`LICENSE`](LICENSE).
+
+A versão portátil inclui o Python (licença PSF), o numpy e o scipy (licenças BSD); os textos
+dessas licenças acompanham cada componente dentro da pasta `python` da versão portátil.

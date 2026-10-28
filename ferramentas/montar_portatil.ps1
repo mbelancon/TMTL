@@ -132,6 +132,10 @@ Nao precisa instalar Python nem nenhum outro programa.
 
 Codigo-fonte, documentacao e novas versoes: https://github.com/mbelancon/TMTL
 Conteudo: Python $PY_VERSION (python.org, embutivel), $($PACOTES -join ', ').
+
+Licenca: GNU GPL versao 3 ou posterior (arquivo LICENSE). Inclui o Python
+(licenca PSF), o numpy e o scipy (licencas BSD), com seus textos de licenca
+dentro da pasta "python".
 "@ | Set-Content (Join-Path $dest "LEIA-ME.txt") -Encoding utf8
 
     Etapa "5/6 Testando a versao portatil"
