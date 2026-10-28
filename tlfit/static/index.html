@@ -1,0 +1,1043 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ajuste de lente térmica</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Fraunces:opsz,wght@9..144,600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bench:#e6eaee;      /* fundo: mesa óptica */
+  --panel:#fbfcfd;
+  --ink:#18222d;
+  --muted:#5b6876;
+  --line:#c9d1d9;
+  --data:#24518f;       /* pontos experimentais */
+  --fit:#b3175a;        /* curva do modelo */
+  --ok:#2d7a4b;
+  --warn:#9a5b00;
+  --focus:#24518f;
+  --font:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --display:"Fraunces",Georgia,serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bench);color:var(--ink);font:15px/1.45 var(--font);font-variant-numeric:tabular-nums}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+
+.app{display:grid;grid-template-columns:400px 1fr;height:100vh}
+aside{background:var(--panel);border-right:1px solid var(--line);overflow-y:auto;padding:18px 18px 40px}
+main{display:grid;grid-template-rows:auto 1fr 300px;min-width:0;min-height:0}
+
+h1{font:600 22px/1.1 var(--display);margin:0 0 2px;letter-spacing:-.01em}
+.sub{color:var(--muted);font-size:13px;margin:0 0 16px}
+section.blk{border-top:1px solid var(--line);padding:14px 0 6px}
+section.blk>h2{font-size:14px;font-weight:700;margin:0 0 10px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+.row label{font-size:13px;color:var(--muted)}
+.row[hidden]{display:none}
+.hint{font-size:12.5px;color:var(--muted);margin:4px 0 8px}
+
+.btn{border:1px solid var(--line);background:#fff;border-radius:6px;padding:6px 12px;cursor:pointer}
+.btn:hover{border-color:var(--muted)}
+.btn.on{border-color:var(--ink);background:var(--ink);color:#fff}
+.btn.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
+.btn.primary:hover{background:#2c3b4b}
+.btn.stop{background:#fff;color:var(--fit);border-color:var(--fit)}
+.btn:disabled{opacity:.45;cursor:default}
+input.num,select{border:1px solid var(--line);border-radius:5px;background:#fff;padding:4px 6px}
+input.num{width:100%;min-width:0;text-align:right}
+input.short{width:70px}
+
+.drop{border:1.5px dashed var(--line);border-radius:8px;padding:12px;text-align:center;color:var(--muted);font-size:13px;cursor:pointer}
+.drop.over{border-color:var(--data);color:var(--data);background:#eef3fa}
+.file{font-size:13px;margin-top:6px;word-break:break-all}
+
+table.params{width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed}
+table.params td.name{overflow:hidden;text-overflow:ellipsis}
+table.params th{font-weight:400;color:var(--muted);text-align:left;padding:2px 3px;font-size:12px}
+table.params td{padding:2px 3px;vertical-align:middle}
+table.params td.name{white-space:nowrap}
+table.params td.name small{color:var(--muted)}
+table.params tr.fixed input.lim{visibility:hidden}
+table.params tr.free td.name{font-weight:700}
+table.params .res{grid-column:1/-1}
+table.params tr.result td{padding:0 3px 5px;font-size:12px;color:var(--ok)}
+table.params tr.result td.warn{color:var(--warn)}
+details.more{margin-top:4px}
+details.more summary{cursor:pointer;font-size:13px;color:var(--muted)}
+
+.status{display:flex;gap:22px;align-items:baseline;padding:12px 20px;border-bottom:1px solid var(--line);background:var(--panel);flex-wrap:wrap}
+.status .big{font:600 20px var(--display)}
+.status .k{color:var(--muted);font-size:12.5px;margin-right:4px}
+.status .state{margin-left:auto;font-size:13px}
+.state.run{color:var(--fit)} .state.done{color:var(--ok)}
+.bar{height:3px;background:var(--line);position:relative;overflow:hidden;width:160px;border-radius:2px;align-self:center}
+.bar>i{position:absolute;inset:0 auto 0 0;background:var(--fit);width:0}
+
+.plots-main{display:grid;grid-template-rows:1fr 120px;padding:10px 14px 0;min-height:0}
+.plots-low{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;padding:10px 14px 14px;min-height:0;border-top:1px solid var(--line)}
+.pane{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:6px;min-height:0;min-width:0;display:flex;flex-direction:column}
+.pane h3{margin:0;padding:6px 10px 0;font-size:13px;font-weight:700;display:flex;gap:8px;align-items:center}
+.pane h3 select{font-size:12px;padding:1px 3px;font-weight:400}
+.pane canvas{flex:1;width:100%;min-height:0;display:block}
+.plots-main .pane:first-child{border-radius:6px 6px 0 0}
+.plots-main .pane:last-child{border-radius:0 0 6px 6px;border-top:none}
+.log{flex:1;overflow:auto;margin:0;padding:6px 10px;font-size:12px;line-height:1.5;white-space:pre-wrap;color:var(--muted)}
+.legend{position:absolute;right:16px;top:8px;font-size:12px;display:flex;gap:14px;color:var(--muted)}
+.legend i{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:5px}
+.legend i.dot{width:7px;height:7px;border-radius:50%}
+.empty[hidden]{display:none}
+.empty{position:absolute;inset:40px 0 0;display:grid;place-items:center;color:var(--muted);font-size:14px;pointer-events:none;text-align:center;padding:20px}
+
+/* modos e série */
+.modes{display:flex;margin:0 0 14px;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.modes button{flex:1;border:0;background:#fff;padding:6px 8px;cursor:pointer;font-size:14px}
+.modes button+button{border-left:1px solid var(--line)}
+.modes button.on{background:var(--ink);color:#fff}
+[hidden]{display:none !important}   /* vale também para painéis com display próprio (#mainSer) */
+.filewrap{max-height:230px;overflow:auto;border:1px solid var(--line);border-radius:6px;margin:8px 0}
+table.files{width:100%;border-collapse:collapse;font-size:12.5px}
+table.files th{position:sticky;top:0;background:var(--panel);font-weight:400;color:var(--muted);text-align:left;padding:3px 6px;border-bottom:1px solid var(--line)}
+table.files td{padding:2px 6px;border-top:1px solid #edf0f3}
+table.files td.fname{word-break:break-all}
+table.files input.num{width:78px}
+table.files tr.off td.fname{color:var(--muted);text-decoration:line-through}
+table.files td.nopow input{border-color:var(--warn)}
+#mainSer{display:grid;grid-template-rows:auto 1fr 290px;min-width:0;min-height:0}
+.ser-top{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:10px 14px 0;min-height:0}
+.ser-low{display:grid;grid-template-columns:2fr 1fr;gap:12px;padding:10px 14px 14px;min-height:0;border-top:1px solid var(--line)}
+.sstats{font-size:12.5px;padding:4px 10px 8px;line-height:1.5;min-height:58px}
+.sstats b{font-weight:700}
+.sstats .warn{color:var(--warn)}
+.tablewrap{flex:1;overflow:auto;min-height:0}
+table.results{width:100%;border-collapse:collapse;font-size:12.5px}
+table.results th{position:sticky;top:0;background:var(--panel);font-weight:400;color:var(--muted);text-align:right;padding:4px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+table.results th:first-child,table.results td:first-child{text-align:left}
+table.results td{padding:3px 8px;text-align:right;border-top:1px solid #edf0f3;white-space:nowrap}
+table.results tr{cursor:pointer}
+table.results tr.sel td{background:#eef3fa}
+table.results td.warn{color:var(--warn)}
+table.results td.pend{color:var(--muted)}
+.swatch{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:baseline}
+
+@media (max-width:900px){
+  .app{grid-template-columns:1fr;height:auto}
+  main{grid-template-rows:auto 420px auto}
+  .plots-low{grid-template-columns:1fr;grid-auto-rows:240px}
+  #mainSer{grid-template-rows:auto auto auto}
+  .ser-top,.ser-low{grid-template-columns:1fr;grid-auto-rows:340px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+<aside>
+  <h1>Ajuste de lente térmica</h1>
+  <p class="sub">Transientes de lente e espelho térmico resolvidos no tempo</p>
+  <div class="modes" role="group" aria-label="Modo">
+    <button id="modeOne" class="on" aria-pressed="true">Um transiente</button>
+    <button id="modeSer" aria-pressed="false">Série</button>
+  </div>
+
+  <section class="blk" id="secSer" hidden>
+    <h2>Série de transientes</h2>
+    <div class="drop" id="sdrop" tabindex="0" role="button">Arraste a pasta ou os arquivos aqui<br><small>ou use os botões abaixo</small></div>
+    <input type="file" id="serDir" webkitdirectory multiple hidden>
+    <input type="file" id="serFiles" multiple accept=".dat,.txt,.csv,.tsv" hidden>
+    <div class="row" style="margin-top:8px">
+      <button class="btn" id="openDir">Abrir pasta</button>
+      <button class="btn" id="openFiles">Escolher arquivos</button>
+    </div>
+    <div class="file" id="serinfo"></div>
+    <div class="filewrap" id="filewrap" hidden>
+      <table class="files" id="files">
+        <thead><tr><th title="Incluir na série">Usar</th><th>Arquivo</th><th id="xhead">P (mW)</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p class="hint">A potência vem do nome do arquivo (por exemplo, 150mW ou 0,2W) ou do cabeçalho (“Potência: 150 mW”). Corrija na tabela se preciso. São usadas as duas primeiras colunas: tempo e sinal.</p>
+    <div class="row">
+      <label>Variável da série</label><input class="num" id="xlabel" value="Potência (mW)" style="width:170px;text-align:left">
+    </div>
+    <div class="row">
+      <label><input type="checkbox" id="snorm"> Normalizar cada transiente por I(t=0)</label>
+    </div>
+    <div class="row">
+      <label>Janela do ajuste: de</label><input class="num short" id="stmin" placeholder="início">
+      <label>a</label><input class="num short" id="stmax" placeholder="fim"><label>s</label>
+    </div>
+    <div class="row"><label>Exemplos:</label><span id="sexamples"></span></div>
+  </section>
+
+  <section class="blk" id="secOne">
+    <h2>Transiente</h2>
+    <div class="drop" id="drop" tabindex="0" role="button">Arraste o arquivo aqui ou clique para abrir<br><small>.dat, .txt ou .csv com tempo e intensidade</small></div>
+    <input type="file" id="file" accept=".dat,.txt,.csv,.tsv" hidden>
+    <div class="file" id="fileinfo"></div>
+    <div class="row" id="colrow" hidden>
+      <label>Tempo</label><select id="colT"></select>
+      <label>Intensidade</label><select id="colY"></select>
+    </div>
+    <div class="row">
+      <label><input type="checkbox" id="norm"> Normalizar por I(t=0)</label>
+    </div>
+    <div class="row">
+      <label>Janela do ajuste: de</label><input class="num short" id="tmin" placeholder="início">
+      <label>a</label><input class="num short" id="tmax" placeholder="fim"><label>s</label>
+    </div>
+    <div class="row"><label>Exemplos:</label><span id="examples"></span></div>
+  </section>
+
+  <section class="blk">
+    <h2>Modelo</h2>
+    <select id="model" style="width:100%"></select>
+    <p class="hint" id="modeldesc"></p>
+    <div class="row" id="presetrow" hidden><label>Fluido:</label><span id="presets"></span></div>
+    <table class="params" id="params">
+      <colgroup><col style="width:40px"><col><col style="width:98px"><col style="width:64px"><col style="width:64px"></colgroup>
+      <thead><tr><th title="Marque para ajustar o parâmetro">Livre</th><th>Parâmetro</th><th>Valor</th><th>Mín</th><th>Máx</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <p class="hint">Marque “Livre” nos parâmetros a ajustar. Parâmetros positivos com limites que cobrem mais de duas décadas são explorados em escala logarítmica.</p>
+  </section>
+
+  <section class="blk">
+    <h2>Otimização</h2>
+    <div class="row">
+      <select id="method" style="width:100%">
+        <option value="auto">Automático (varredura em dois níveis quando possível)</option>
+        <option value="pso+lm">Enxame (PSO) e depois Levenberg–Marquardt</option>
+        <option value="pso">Só enxame (PSO)</option>
+        <option value="lm">Só Levenberg–Marquardt, a partir dos valores atuais</option>
+      </select>
+    </div>
+    <p class="hint" id="methodhint"></p>
+    <div class="row">
+      <label>Partículas</label><input class="num short" id="particles" value="20">
+      <label>Iterações</label><input class="num short" id="iters" value="30">
+    </div>
+    <div class="row">
+      <label title="O ajuste é repetido com sementes diferentes e fica o melhor resultado">Rodadas</label><input class="num short" id="restarts" value="3">
+    </div>
+    <div class="row">
+      <label>Precisão numérica</label>
+      <select id="acc"><option value="1">Normal</option><option value="2">Alta (2×, mais lenta)</option></select>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn" id="sim">Calcular curva</button>
+      <button class="btn primary" id="fit">Ajustar</button>
+      <button class="btn stop" id="stop" disabled>Parar</button>
+    </div>
+    <div class="row">
+      <button class="btn" id="exp" disabled>Exportar ajuste (.csv)</button>
+      <button class="btn" id="rep" disabled>Relatório (.txt)</button>
+      <button class="btn" id="sexp" disabled hidden>Exportar resultados (.csv)</button>
+      <button class="btn" id="srep" disabled hidden>Relatório da série (.txt)</button>
+    </div>
+  </section>
+</aside>
+
+<main id="mainOne">
+  <div class="status">
+    <span><span class="k">χ²</span><span class="big" id="chi">—</span></span>
+    <span><span class="k">R²</span><span id="r2">—</span></span>
+    <span><span class="k">avaliações</span><span id="neval">—</span></span>
+    <span><span class="k">tempo</span><span id="elapsed">—</span></span>
+    <div class="bar"><i id="prog"></i></div>
+    <span class="state" id="state">Abra um transiente para começar</span>
+  </div>
+
+  <div class="plots-main">
+    <div class="pane">
+      <h3>Intensidade normalizada</h3>
+      <div class="legend"><span><i class="dot" style="background:var(--data)"></i>experimental</span><span><i style="background:var(--fit)"></i>modelo</span></div>
+      <canvas id="cMain"></canvas>
+      <div class="empty" id="emptyMain">Nenhum transiente carregado.<br>Abra um arquivo ou escolha um exemplo à esquerda.</div>
+    </div>
+    <div class="pane"><h3>Resíduos</h3><canvas id="cRes"></canvas></div>
+  </div>
+
+  <div class="plots-low">
+    <div class="pane"><h3>Convergência do χ²</h3><canvas id="cConv"></canvas></div>
+    <div class="pane">
+      <h3>Busca <select id="sx"></select> × <select id="sy"></select></h3>
+      <canvas id="cSwarm"></canvas>
+      <div class="empty" id="emptySwarm">Os pontos da busca aparecem aqui durante o ajuste.<br>Cor: χ² (escuro = melhor).</div>
+    </div>
+    <div class="pane"><h3>Registro</h3><pre class="log" id="log"></pre></div>
+  </div>
+</main>
+
+<main id="mainSer" hidden>
+  <div class="status">
+    <span><span class="k">transientes</span><span class="big" id="sn">—</span></span>
+    <span><span class="k">ajustados</span><span id="sdone">—</span></span>
+    <span><span class="k">tempo</span><span id="selapsed">—</span></span>
+    <div class="bar"><i id="sprog"></i></div>
+    <span class="state" id="sstate">Abra uma pasta ou escolha uma série de exemplo</span>
+  </div>
+  <div class="ser-top">
+    <div class="pane">
+      <h3>Transientes e ajustes</h3>
+      <div class="legend" id="serlegend"></div>
+      <canvas id="cSerT"></canvas>
+      <div class="empty" id="emptySer">Nenhuma série carregada.<br>Abra uma pasta ou escolha um exemplo à esquerda.</div>
+    </div>
+    <div class="pane">
+      <h3><select id="spar" aria-label="Parâmetro"></select> × <span id="sxname">potência</span></h3>
+      <canvas id="cSerP"></canvas>
+      <div class="sstats" id="sstats"></div>
+    </div>
+  </div>
+  <div class="ser-low">
+    <div class="pane">
+      <h3>Resultados</h3>
+      <div class="tablewrap"><table class="results" id="results"><thead></thead><tbody></tbody></table></div>
+    </div>
+    <div class="pane"><h3>Registro</h3><pre class="log" id="slog"></pre></div>
+  </div>
+</main>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const S = {models:[], model:null, raw:null, header:[], t:null, y:null, fileName:"",
+           curve:null, curveT:null, job:null, poll:null, swarmHist:[], lastResult:null};
+
+/* ---------- formatação ---------- */
+function fmt(x, d=4){
+  if (x===null || x===undefined || !isFinite(x)) return "—";
+  const a = Math.abs(x);
+  if (a!==0 && (a<1e-3 || a>=1e5)) return x.toExponential(d-1).replace("e","e");
+  return (+x.toPrecision(d)).toString();
+}
+const numStr = v => { if (v===null||v===undefined) return ""; const a=Math.abs(v); return (a!==0&&(a<1e-3||a>=1e6)) ? (+v.toPrecision(6)).toExponential() : String(+v.toPrecision(6)); };
+const parseNum = s => { const v = parseFloat(String(s).replace(",", ".")); return v; };
+
+/* ---------- gráfico em canvas ---------- */
+function niceTicks(lo, hi, n=5){
+  if (!(hi>lo)) { hi = lo + 1; }
+  const span = hi-lo, step0 = span/n, mag = Math.pow(10, Math.floor(Math.log10(step0)));
+  const err = step0/mag, step = (err>=7.5?10:err>=3.5?5:err>=1.5?2:1)*mag;
+  const out=[]; for(let v=Math.ceil(lo/step)*step; v<=hi+step*1e-9; v+=step) out.push(Math.abs(v)<step*1e-9?0:v);
+  return out;
+}
+function logTicks(lo, hi){
+  const out=[]; for(let e=Math.floor(Math.log10(lo)); e<=Math.ceil(Math.log10(hi)); e++){ const v=Math.pow(10,e); if(v>=lo*0.999&&v<=hi*1.001) out.push(v); }
+  if (out.length>=2) return out;
+  return niceTicks(lo, hi, 4).filter(v=>v>0);      /* menos de uma década: ticks lineares */
+}
+function tickLabel(v, log){
+  if (log){ const e=Math.log10(v); if (Math.abs(e-Math.round(e))<1e-9) return "1e" + Math.round(e); }
+  const a=Math.abs(v); if (a!==0 && (a<1e-3||a>=1e4)) return v.toExponential(1);
+  return (+v.toPrecision(6)).toString();
+}
+function plot(canvas, o){
+  const dpr = window.devicePixelRatio||1, W = canvas.clientWidth, H = canvas.clientHeight;
+  if (W<10||H<10) return;
+  canvas.width = W*dpr; canvas.height = H*dpr;
+  const g = canvas.getContext("2d"); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,H);
+  const css = getComputedStyle(document.documentElement);
+  const pad = {l:o.padL??62, r:14, t:o.padT??10, b:o.xlabel?36:20};
+  const xs=[], ys=[];
+  for (const s of o.series) for (let i=0;i<s.x.length;i++){ const X=s.x[i], Y=s.y[i];
+    if (isFinite(X)&&isFinite(Y)&&(!o.logx||X>0)&&(!o.logy||Y>0)){ xs.push(X); ys.push(Y);
+      if (s.err && isFinite(s.err[i])){ ys.push(Y-s.err[i]); ys.push(Y+s.err[i]); } } }
+  if (!xs.length) return;
+  let [x0,x1] = o.xr || [Math.min(...xs), Math.max(...xs)];
+  let [y0,y1] = o.yr || [Math.min(...ys), Math.max(...ys)];
+  if (o.ysym){ const m=Math.max(Math.abs(y0),Math.abs(y1))||1; y0=-m; y1=m; }
+  const fx = o.logx?Math.log10:(v=>v), fy = o.logy?Math.log10:(v=>v);
+  let X0=fx(x0), X1=fx(x1), Y0=fy(y0), Y1=fy(y1);
+  if (X1===X0){X0-=0.5;X1+=0.5;} if (Y1===Y0){Y0-=0.5;Y1+=0.5;}
+  const my=(Y1-Y0)*0.06; Y0-=my; Y1+=my;
+  if (!o.xr){ const mx=(X1-X0)*0.02; X0-=mx; X1+=mx; }
+  const px = v => pad.l + (fx(v)-X0)/(X1-X0)*(W-pad.l-pad.r);
+  const py = v => H-pad.b - (fy(v)-Y0)/(Y1-Y0)*(H-pad.t-pad.b);
+  g.font = "11px " + css.getPropertyValue("--font"); g.fillStyle = css.getPropertyValue("--muted").trim();
+  g.strokeStyle = "#e3e8ed"; g.lineWidth = 1;
+  const xt = o.logx?logTicks(10**X0,10**X1):niceTicks(X0,X1,Math.max(3,Math.floor(W/110)));
+  const yt = o.logy?logTicks(10**Y0,10**Y1):niceTicks(Y0,Y1,Math.max(3,Math.floor(H/45)));
+  g.textAlign="center"; g.textBaseline="top";
+  for (const v of xt){ const p=px(v); if(p<pad.l-1||p>W-pad.r+1) continue; g.beginPath(); g.moveTo(p,pad.t); g.lineTo(p,H-pad.b); g.stroke(); g.fillText(tickLabel(v,o.logx),p,H-pad.b+4); }
+  g.textAlign="right"; g.textBaseline="middle";
+  for (const v of yt){ const p=py(v); if(p<pad.t-1||p>H-pad.b+1) continue; g.beginPath(); g.moveTo(pad.l,p); g.lineTo(W-pad.r,p); g.stroke(); g.fillText(tickLabel(v,o.logy),pad.l-6,p); }
+  if (o.zero){ g.strokeStyle="#9aa6b2"; g.beginPath(); g.moveTo(pad.l,py(0)); g.lineTo(W-pad.r,py(0)); g.stroke(); }
+  g.strokeStyle="#aab4be"; g.strokeRect(pad.l+.5,pad.t+.5,W-pad.l-pad.r-1,H-pad.t-pad.b-1);
+  if (o.xlabel){ g.textAlign="center"; g.textBaseline="bottom"; g.fillText(o.xlabel,(pad.l+W-pad.r)/2,H-2); }
+  if (o.ylabel){ g.save(); g.translate(12,(pad.t+H-pad.b)/2); g.rotate(-Math.PI/2); g.textAlign="center"; g.textBaseline="middle"; g.fillText(o.ylabel,0,0); g.restore(); }
+  g.save(); g.beginPath(); g.rect(pad.l,pad.t,W-pad.l-pad.r,H-pad.t-pad.b); g.clip();
+  for (const s of o.series){
+    if (s.type==="line"){
+      g.strokeStyle=s.color; g.lineWidth=s.width||2; g.globalAlpha=s.alpha??1; g.setLineDash(s.dash||[]); g.beginPath(); let up=false;
+      for (let i=0;i<s.x.length;i++){ const ok=isFinite(s.y[i])&&(!o.logy||s.y[i]>0); if(!ok){up=false;continue;}
+        const X=px(s.x[i]),Y=py(s.y[i]); if(!up){g.moveTo(X,Y);up=true;} else g.lineTo(X,Y);} g.stroke(); g.setLineDash([]);
+    } else {
+      const r=s.size||3;
+      if (s.err){ g.lineWidth=1.2; g.strokeStyle=s.color||"#555";
+        for (let i=0;i<s.x.length;i++){ if(!isFinite(s.y[i])||!isFinite(s.err[i])) continue;
+          const X=px(s.x[i]); g.beginPath(); g.moveTo(X,py(s.y[i]-s.err[i])); g.lineTo(X,py(s.y[i]+s.err[i])); g.stroke(); } }
+      for (let i=0;i<s.x.length;i++){ if(!isFinite(s.y[i])||!isFinite(s.x[i])) continue;
+        g.globalAlpha=s.alpha??1; g.fillStyle = s.colors?s.colors[i]:s.color;
+        g.beginPath(); g.arc(px(s.x[i]),py(s.y[i]),r,0,7); g.fill();
+        if (s.ring){ g.globalAlpha=1; g.strokeStyle=s.ring; g.lineWidth=2; g.beginPath(); g.arc(px(s.x[i]),py(s.y[i]),r+3,0,7); g.stroke(); } }
+    }
+    g.globalAlpha=1;
+  }
+  g.restore();
+}
+/* mapa "inferno" simplificado: escuro = melhor χ² */
+const HEAT=[[0,0,4],[40,11,84],[101,21,110],[159,42,99],[212,72,66],[245,125,21],[250,193,39],[252,255,164]];
+function heat(f){ f=Math.min(1,Math.max(0,f))*(HEAT.length-1); const i=Math.min(HEAT.length-2,Math.floor(f)), r=f-i;
+  const c=HEAT[i].map((v,k)=>Math.round(v+(HEAT[i+1][k]-v)*r)); return `rgb(${c})`; }
+
+/* ---------- dados ---------- */
+function window_(){
+  if (!S.t) return null;
+  const a = parseNum($("tmin").value), b = parseNum($("tmax").value);
+  const idx=[]; for (let i=0;i<S.t.length;i++){ const t=S.t[i]; if((isNaN(a)||t>=a)&&(isNaN(b)||t<=b)) idx.push(i); }
+  return {t:idx.map(i=>S.t[i]), y:idx.map(i=>S.y[i])};
+}
+function applyColumns(){
+  if (!S.raw) return;
+  const ti=+$("colT").value, yi=+$("colY").value;
+  const ord = S.raw[ti].map((_,i)=>i).sort((a,b)=>S.raw[ti][a]-S.raw[ti][b]);
+  S.t = ord.map(i=>S.raw[ti][i]); S.y = ord.map(i=>S.raw[yi][i]);
+  if ($("norm").checked && S.y.length){ const y0=S.y[0]; if (y0) S.y = S.y.map(v=>v/y0); }
+  S.curve=null; S.curveT=null;
+  $("emptyMain").hidden = true;
+  $("fileinfo").textContent = `${S.fileName}: ${S.t.length} pontos, t de ${fmt(S.t[0])} a ${fmt(S.t[S.t.length-1])} s`;
+  updateStats(); redraw();
+}
+async function loadText(name, text){
+  try{
+    const r = await api("/api/parse", {text});
+    S.raw = r.data; S.header = r.header; S.fileName = name;
+    const opts = r.header.map((h,i)=>`<option value="${i}">${h}</option>`).join("");
+    $("colT").innerHTML = opts; $("colY").innerHTML = opts;
+    $("colT").value = 0; $("colY").value = Math.min(1, r.header.length-1);
+    $("colrow").hidden = r.header.length <= 2;
+    $("tmin").value = ""; $("tmax").value = "";
+    applyColumns();
+    say(`Arquivo ${name} carregado (${r.data[0].length} pontos).`);
+    $("state").textContent = "Pronto para calcular ou ajustar"; $("state").className="state";
+  }catch(e){ say("Não foi possível ler o arquivo: " + e.message); }
+}
+
+/* ---------- parâmetros ---------- */
+function renderModel(){
+  const m = S.model; $("modeldesc").textContent = m.description;
+  const tb = $("params").tBodies[0]; tb.innerHTML = "";
+  for (const p of m.params){
+    const tr = document.createElement("tr"); tr.dataset.name = p.name;
+    tr.className = p.fit ? "free" : "fixed";
+    tr.innerHTML = `<td><input type="checkbox" class="fitchk" ${p.fit?"checked":""} aria-label="ajustar ${p.label}"></td>
+      <td class="name">${p.label}${p.unit?` <small>${p.unit}</small>`:""}</td>
+      <td><input class="num val" value="${numStr(p.value)}"></td>
+      <td><input class="num lim lo" value="${numStr(p.lo ?? defLim(p.value,-1))}"></td>
+      <td><input class="num lim hi" value="${numStr(p.hi ?? defLim(p.value,1))}"></td>`;
+    tr.querySelector(".fitchk").addEventListener("change", e => { tr.className = e.target.checked?"free":"fixed"; fillSwarmSelectors(); });
+    tb.appendChild(tr);
+    const rr = document.createElement("tr"); rr.className="result"; rr.dataset.for=p.name; rr.hidden=true;
+    rr.innerHTML = `<td></td><td colspan="4"></td>`; tb.appendChild(rr);
+  }
+  const pr = m.presets || {};
+  $("presetrow").hidden = !Object.keys(pr).length;
+  $("presets").innerHTML = Object.keys(pr).map(n=>`<button class="btn preset" style="padding:2px 10px;font-size:12.5px" data-p="${n}">${n}</button>`).join(" ");
+  for (const b of $("presets").querySelectorAll("button")) b.onclick = () => applyPreset(b.dataset.p);
+  fillSwarmSelectors(); S.curve=null; redraw();
+}
+function applyPreset(name){
+  const pr = S.model.presets[name];
+  for (const [n,v] of Object.entries(pr.values||{})) setValue(n, v);
+  for (const [n,[lo,hi]] of Object.entries(pr.bounds||{})){
+    const tr=$("params").querySelector(`tr[data-name="${n}"]`); if (!tr) continue;
+    tr.querySelector(".lo").value=numStr(lo); tr.querySelector(".hi").value=numStr(hi);
+  }
+  for (const b of $("presets").querySelectorAll("button")) b.classList.toggle("on", b.dataset.p===name);
+  S.curve=null; updateStats(); redraw();
+  say(`Fluido: ${name} (${Object.entries(pr.values).map(([n,v])=>labelOf(n)+" = "+numStr(v)).join(", ")}).`);
+}
+function defLim(v, s){ if (v===0) return s*1; const a=Math.abs(v); return v>0 ? (s<0? v/10 : v*10) : (s<0? v*10 : v/10); }
+function readParams(){
+  const vals={}, free=[]; let bad=null;
+  for (const tr of $("params").tBodies[0].querySelectorAll("tr[data-name]")){
+    const n = tr.dataset.name, v = parseNum(tr.querySelector(".val").value);
+    if (!isFinite(v)) bad = bad || n;
+    vals[n] = v;
+    if (tr.querySelector(".fitchk").checked){
+      const lo=parseNum(tr.querySelector(".lo").value), hi=parseNum(tr.querySelector(".hi").value);
+      if (!isFinite(lo)||!isFinite(hi)||lo===hi) bad = bad || n;
+      free.push({name:n, lo, hi});
+    }
+  }
+  if (bad) throw new Error(`valor inválido em "${labelOf(bad)}"`);
+  return {vals, free};
+}
+const labelOf = n => (S.model.params.find(p=>p.name===n)||{label:n}).label;
+function setValue(n, v){ const tr=$("params").querySelector(`tr[data-name="${n}"]`); if (tr) tr.querySelector(".val").value = numStr(v); }
+function showResult(res){
+  for (const rr of $("params").querySelectorAll("tr.result")) { rr.hidden=true; }
+  if (!res) return;
+  const ex = res.extra||{}, atb = ex.at_bound||[];
+  for (const [n,s] of Object.entries(res.sigma||{})){
+    const rr = $("params").querySelector(`tr.result[data-for="${n}"]`); if (!rr) continue;
+    const v = res.params[n], rel = s && v ? Math.abs(s/v)*100 : NaN;
+    const td = rr.cells[1];
+    td.className = atb.includes(n) || rel>50 ? "warn" : "";
+    td.textContent = `${fmt(v,5)} ± ${fmt(s,2)}` + (isFinite(rel)?` (${rel<0.1?rel.toFixed(2):rel.toPrecision(2)} %)`:"") +
+                     (atb.includes(n) ? " no limite" : "");
+    rr.hidden=false;
+  }
+}
+function fillSwarmSelectors(){
+  const free=[...$("params").querySelectorAll("tr[data-name]")].filter(tr=>tr.querySelector(".fitchk").checked).map(tr=>tr.dataset.name);
+  for (const [id,def] of [["sx",0],["sy",1]]){
+    const sel=$(id), cur=sel.value;
+    sel.innerHTML = free.map(n=>`<option value="${n}">${labelOf(n)}</option>`).join("");
+    sel.value = free.includes(cur) ? cur : (free[Math.min(def, free.length-1)] || "");
+  }
+}
+
+/* ---------- desenho ---------- */
+function updateStats(chi){
+  const w = window_();
+  if (!w || !S.curve || S.curveT!==w.t.length){ $("chi").textContent = chi!==undefined?fmt(chi):"—"; $("r2").textContent="—"; return; }
+  let ss=0, st=0; const m = w.y.reduce((a,b)=>a+b,0)/w.y.length;
+  for (let i=0;i<w.y.length;i++){ ss += (w.y[i]-S.curve[i])**2; st += (w.y[i]-m)**2; }
+  $("chi").textContent = fmt(ss); $("r2").textContent = st ? (1-ss/st).toFixed(6) : "—";
+}
+function redraw(){
+  const w = window_();
+  if (w){
+    const series=[];
+    const outT=[],outY=[]; for(let i=0;i<S.t.length;i++){ if(!w.t.includes(S.t[i])){outT.push(S.t[i]);outY.push(S.y[i]);} }
+    if (outT.length) series.push({type:"points", x:outT, y:outY, color:"#9aa6b2", size:2.2});
+    series.push({type:"points", x:w.t, y:w.y, color:getVar("--data"), size:2.6});
+    if (S.curve && S.curve.length===w.t.length) series.push({type:"line", x:w.t, y:S.curve, color:getVar("--fit"), width:2});
+    plot($("cMain"), {series, xlabel:"tempo (s)", ylabel:"I(t)/I(0)"});
+    if (S.curve && S.curve.length===w.t.length){
+      const r = w.y.map((v,i)=>v-S.curve[i]);
+      plot($("cRes"), {series:[{type:"points", x:w.t, y:r, color:getVar("--data"), size:2}], zero:true, ysym:true, padT:6, xr:[Math.min(...S.t), Math.max(...S.t)]});
+    } else clear($("cRes"));
+  } else if (S.curve && S.simT){
+    plot($("cMain"), {series:[{type:"line", x:S.simT, y:S.curve, color:getVar("--fit")}], xlabel:"tempo (s)", ylabel:"I(t)/I(0)"});
+  }
+  drawJob();
+}
+function clear(c){ const g=c.getContext("2d"); g.clearRect(0,0,c.width,c.height); }
+const getVar = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+function drawJob(){
+  const j = S.job;
+  if (!j || !j.history || !j.history.length){ clear($("cConv")); }
+  else {
+    /* um trecho por fase contígua; cada trecho começa no último ponto do anterior */
+    const series=[], H=j.history; let seg=[H[0]];
+    const flush = (ph) => { if (seg.length>1 || series.length===0)
+      series.push({type:"line", x:seg.map(h=>h[0]), y:seg.map(h=>h[1]), color: ph==="busca"?getVar("--data"):getVar("--fit"), width:2}); };
+    const kind = h => (h[2]==="pso"||h[2]==="grade") ? "busca" : "lm";
+    for (let i=1;i<H.length;i++){
+      const ph=kind(H[i]), prev=kind(seg[seg.length-1]);
+      if (ph!==prev && seg.length>1){ flush(prev); seg=[seg[seg.length-1]]; }
+      seg.push(H[i]);
+    }
+    flush(kind(seg[seg.length-1]));
+    plot($("cConv"), {series, logy:true, xlabel:"avaliações do modelo  (azul: busca, vinho: LM)", padL:52});
+  }
+  const sx=$("sx").value, sy=$("sy").value;
+  if (!j || !j.swarm || !sx){ clear($("cSwarm")); $("emptySwarm").hidden = !!(j&&j.swarm); return; }
+  $("emptySwarm").hidden = true;
+  const names = j.free.map(f=>f.name), ix=names.indexOf(sx), iy=names.indexOf(sy);
+  if (ix<0) return;
+  const fx=j.free[ix], fy=iy>=0?j.free[iy]:null;
+  const series=[];
+  const chis = j.swarm_chi.filter(isFinite).map(Math.log10);
+  const cmin=Math.min(...chis), cmax=Math.max(...chis);
+  for (let k=0;k<j.trail.length-1;k++){
+    const T=j.trail[k]; series.push({type:"points", x:T.map(r=>r[ix]), y:T.map((r,i)=>fy?r[iy]:j.swarm_chi[i]), color:"#9aa6b2", size:1.6, alpha:0.15+0.4*k/j.trail.length});
+  }
+  series.push({type:"points", x:j.swarm.map(r=>r[ix]), y:j.swarm.map((r,i)=>fy && iy!==ix ? r[iy] : j.swarm_chi[i]),
+               colors:j.swarm_chi.map(c=>heat(cmax>cmin?(Math.log10(c)-cmin)/(cmax-cmin)*0.85:0.3)), size:4});
+  if (j.best) series.push({type:"points", x:[j.best[sx]], y:[fy && iy!==ix ? j.best[sy] : j.best_chi], color:"rgba(0,0,0,0)", size:3, ring:getVar("--fit")});
+  const sameAxis = !fy || iy===ix;
+  const ext = (k, f) => { const v=[]; for (const T of j.trail.concat([j.swarm])) for (const r of T) if (isFinite(r[k])) v.push(r[k]);
+    let a=Math.min(...v), b=Math.max(...v);
+    if (f.log){ a=Math.log10(a); b=Math.log10(b); const m=Math.max((b-a)*0.08,0.02); return [10**(a-m),10**(b+m)]; }
+    const m=Math.max((b-a)*0.08,Math.abs(b)*1e-3+1e-30); return [a-m,b+m]; };
+  plot($("cSwarm"), {series, logx:fx.log, logy:sameAxis?true:fy.log,
+    xr:ext(ix,fx), yr: sameAxis? undefined : ext(iy,fy), xlabel:labelOf(sx), ylabel: sameAxis?"χ²":labelOf(sy)});
+}
+
+/* ---------- ações ---------- */
+async function api(url, body){
+  const r = await fetch(url, body===undefined?{}:{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)});
+  const j = await r.json(); if (!r.ok) throw new Error(j.error||r.statusText); return j;
+}
+function say(msg){ const l=$("log"); l.textContent += msg + "\n"; l.scrollTop = l.scrollHeight; }
+
+async function simulate(){
+  try{
+    const {vals} = readParams(); const w = window_();
+    let t = w ? w.t : null;
+    if (!t){ const tmax = parseNum($("tmax").value) || 0.2; t = Array.from({length:201},(_,i)=>i*tmax/200); S.simT=t; }
+    $("state").textContent = "Calculando…"; $("state").className="state run";
+    const r = await api("/api/simulate", {model:S.model.key, params:vals, t, accuracy:+$("acc").value});
+    S.curve = r.y; S.curveT = w ? w.t.length : null;
+    $("state").textContent = `Curva calculada em ${r.ms.toFixed(0)} ms (${r.info.n_alpha}×${r.info.n_g} nós)`; $("state").className="state";
+    updateStats(); redraw(); $("exp").disabled = !w;
+  }catch(e){ say("Erro: " + e.message); $("state").textContent="Erro ao calcular"; $("state").className="state"; }
+}
+
+async function startFit(){
+  const w = window_();
+  if (!w || w.t.length < 3){ say("Carregue um transiente (pelo menos 3 pontos na janela) antes de ajustar."); return; }
+  let pr; try { pr = readParams(); } catch(e){ say("Erro: "+e.message); return; }
+  if (!pr.free.length){ say("Marque ao menos um parâmetro em “Ajustar”."); return; }
+  const options = {method:$("method").value, particles:+$("particles").value||20, iterations:+$("iters").value||30, restarts:+$("restarts").value||1};
+  try{
+    const r = await api("/api/fit", {model:S.model.key, params:pr.vals, free:pr.free, t:w.t, y:w.y, options, accuracy:+$("acc").value});
+    S.jobId = r.id; S.job = null; showResult(null);
+    $("log").textContent = "";
+    say(`Ajuste iniciado: ${pr.free.map(f=>labelOf(f.name)).join(", ")} livres; ${w.t.length} pontos.`);
+    setRunning(true);
+    S.poll = setInterval(pollJob, 400);
+  }catch(e){ say("Erro: " + e.message); }
+}
+function setRunning(on){
+  $("fit").disabled = on; $("sim").disabled = on; $("stop").disabled = !on;
+  $("state").className = "state " + (on?"run":"");
+}
+let lastLog = 0;
+async function pollJob(){
+  let j; try { j = await api("/api/job/" + S.jobId); } catch(e){ return; }
+  S.job = j;
+  if (j.log.length < lastLog) lastLog = 0;
+  for (const m of j.log.slice(lastLog)) say(m); lastLog = j.log.length;
+  $("neval").textContent = j.n_eval; $("elapsed").textContent = j.elapsed.toFixed(1) + " s";
+  const R = j.n_runs||1, per = $("method").value==="pso" ? 1 : 0.85;
+  const searching = j.phase==="pso" || j.phase==="grade";
+  const frac = ((j.run||0) + (searching ? (j.iteration/(j.n_iter||1))*per : 0.95)) / R;
+  $("prog").style.width = (j.status==="running" ? frac*100 : 100) + "%";
+  $("state").textContent = j.status==="queued" ? "Na fila: outro ajuste está rodando no servidor" : j.status!=="running" ? "" : ((R>1 ? `Rodada ${(j.run||0)+1} de ${R}, ` : "") + (j.phase==="pso" ? `PSO: iteração ${j.iteration} de ${j.n_iter}` : j.phase==="grade" ? `Varredura: ponto ${j.iteration} de ${j.n_iter}` : "refinando com Levenberg–Marquardt"));
+  if (j.best_curve){ S.curve = j.best_curve; S.curveT = j.best_curve.length; }
+  updateStats(j.best_chi); redraw();
+  if (j.status !== "running" && j.status !== "queued"){
+    clearInterval(S.poll); lastLog = 0; setRunning(false);
+    const res = j.result;
+    if (res){
+      S.lastResult = res; S.curve = res.curve; S.curveT = res.curve.length;
+      for (const f of j.free) setValue(f.name, res.params[f.name]);
+      showResult(res); updateStats(); redraw();
+      $("exp").disabled = false; $("rep").disabled = false;
+      if (res.extra){
+        say(`χ² reduzido = ${fmt(res.extra.reduced_chi2)} (${res.extra.dof} graus de liberdade).`);
+        if (res.extra.at_bound.length) say(`Atenção: ${res.extra.at_bound.map(labelOf).join(", ")} terminou no limite do intervalo; amplie o intervalo e ajuste de novo.`);
+        const names=j.free.map(f=>f.name), C=res.extra.corr;
+        for (let a=0;a<names.length;a++) for (let b=a+1;b<names.length;b++)
+          if (Math.abs(C[a][b])>0.95) say(`Correlação forte entre ${labelOf(names[a])} e ${labelOf(names[b])} (${C[a][b].toFixed(3)}): esses parâmetros são pouco distinguíveis com estes dados.`);
+      }
+    }
+    $("state").textContent = {done:"Ajuste concluído", stopped:"Ajuste interrompido", error:"Ajuste falhou — veja o registro"}[j.status];
+    $("state").className = "state " + (j.status==="done"?"done":"");
+  }
+}
+
+function download(name, text){
+  const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([text],{type:"text/plain"})); a.download=name; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+}
+function baseName(){ return (S.fileName||"transiente").replace(/\.[^.]+$/,""); }
+function exportCSV(){
+  const w = window_(); if (!w || !S.curve) return;
+  let s = "tempo,I_experimental,I_modelo,residuo\n";
+  for (let i=0;i<w.t.length;i++) s += `${w.t[i]},${w.y[i]},${S.curve[i]},${w.y[i]-S.curve[i]}\n`;
+  download(baseName()+"_ajuste.csv", s);
+}
+function exportReport(){
+  const {vals} = readParams(), res = S.lastResult;
+  let s = `Ajuste de lente térmica\nArquivo: ${S.fileName}\nModelo: ${S.model.title}\nData: ${new Date().toLocaleString("pt-BR")}\n\n`;
+  s += `chi2 = ${res?res.chi2:"—"}\n`; if (res&&res.extra) s += `chi2 reduzido = ${res.extra.reduced_chi2} (${res.extra.dof} g.l.)\n`;
+  s += `\nParâmetro\tValor\tIncerteza (1σ)\tStatus\n`;
+  for (const p of S.model.params){
+    const sig = res&&res.sigma ? res.sigma[p.name] : undefined;
+    s += `${p.name} (${p.label}${p.unit?", "+p.unit:""})\t${vals[p.name]}\t${sig!==undefined?sig:""}\t${sig!==undefined?"ajustado":"fixo"}\n`;
+  }
+  if (res&&res.extra&&res.extra.corr){ const n=Object.keys(res.sigma); s += `\nCorrelações\n\t${n.join("\t")}\n`;
+    res.extra.corr.forEach((r,i)=> s += n[i]+"\t"+r.map(v=>v.toFixed(4)).join("\t")+"\n"); }
+  download(baseName()+"_relatorio.txt", s);
+}
+
+/* ---------- série de transientes ---------- */
+S.mode = "one";
+S.ser = {files:[], job:null, jobId:null, poll:null, sel:null, lastLog:0};
+const DATA_EXT = /\.(dat|txt|csv|tsv)$/i;
+
+function setMode(m){
+  S.mode = m;
+  const ser = m === "ser";
+  $("modeOne").classList.toggle("on", !ser); $("modeSer").classList.toggle("on", ser);
+  $("modeOne").setAttribute("aria-pressed", !ser); $("modeSer").setAttribute("aria-pressed", ser);
+  $("secOne").hidden = ser; $("secSer").hidden = !ser;
+  $("mainOne").hidden = ser; $("mainSer").hidden = !ser;
+  $("fit").textContent = ser ? "Ajustar série" : "Ajustar";
+  for (const id of ["sim","exp","rep"]) $(id).hidden = ser;
+  for (const id of ["sexp","srep"]) $(id).hidden = !ser;
+  if (ser) applyScaleSuggestion();
+  requestAnimationFrame(() => ser ? drawSeries() : redraw());
+}
+
+/* lê uma pasta arrastada (entradas de diretório) ou arquivos soltos */
+async function entriesToFiles(entry, out){
+  if (entry.isFile){ out.push(await new Promise((res, rej) => entry.file(res, rej))); return; }
+  if (entry.isDirectory){
+    const reader = entry.createReader();
+    for (;;){
+      const batch = await new Promise((res, rej) => reader.readEntries(res, rej));
+      if (!batch.length) break;
+      for (const e of batch) await entriesToFiles(e, out);
+    }
+  }
+}
+async function loadSeriesFiles(files){
+  const list = [...files].filter(f => DATA_EXT.test(f.name) && !f.name.startsWith("."));
+  if (!list.length){ ssay("Nenhum arquivo .dat, .txt, .csv ou .tsv encontrado."); return; }
+  const texts = await Promise.all(list.map(async f => ({name:f.name, text: f.text ? await f.text() : f.content})));
+  await loadSeriesTexts(texts);
+}
+async function loadSeriesTexts(texts, label){
+  const out = [], bad = [];
+  await Promise.all(texts.map(async ({name, text}) => {
+    try {
+      const r = await api("/api/parse", {text, name});
+      if (r.data.length < 2) throw new Error("menos de duas colunas");
+      const ord = r.data[0].map((_,i)=>i).sort((a,b)=>r.data[0][a]-r.data[0][b]);
+      out.push({name, t: ord.map(i=>r.data[0][i]), y: ord.map(i=>r.data[1][i]),
+                x: r.power, src: r.power_source, use: true});
+    } catch(e){ bad.push(`${name} (${e.message})`); }
+  }));
+  out.sort((a,b) => (a.x??Infinity) - (b.x??Infinity) || a.name.localeCompare(b.name, "pt-BR", {numeric:true}));
+  S.ser.files = out; S.ser.job = null; S.ser.sel = null;
+  // dados em volts (longe de 1): sugere normalizar
+  const far = out.some(f => Math.abs(f.y[0] - 1) > 0.05);
+  $("snorm").checked = far;
+  S.ser.pendingScale = far;           /* aplicado ao entrar no modo Série (a tabela é compartilhada) */
+  if (S.mode === "ser") applyScaleSuggestion();
+  renderFiles();
+  const miss = out.filter(f => f.x == null).length;
+  ssay(`${out.length} transientes carregados.` + (bad.length ? ` Não foi possível ler: ${bad.join(", ")}.` : "") +
+       (miss ? ` ${miss} sem potência identificada: preencha na tabela.` : "") +
+       (far ? " Os sinais não estão normalizados: a normalização por I(t=0) foi ligada." : ""));
+  $("sstate").textContent = label ? `${label}: clique em Ajustar série` : "Pronto para ajustar a série"; $("sstate").className = "state";
+  if (label) $("serinfo").textContent = `${label} (${out.length} arquivos)`;
+  $("sexp").disabled = $("srep").disabled = true;
+  try { S.ser.free = readParams().free; } catch(e){ /* parâmetros inválidos: fica para o ajuste */ }
+  fillParSelector(); renderResults(); drawSeries();
+}
+function applyScaleSuggestion(){
+  if (!S.ser.pendingScale) return;
+  S.ser.pendingScale = false;
+  const sc = $("params").querySelector('tr[data-name="scale"] .fitchk');
+  if (sc && !sc.checked){ sc.checked = true; sc.closest("tr").className = "free"; fillSwarmSelectors();
+    ssay("Com sinais normalizados pelo primeiro ponto, I0 (escala) ficou livre para absorver o ruído desse ponto."); }
+}
+function renderFiles(){
+  const fs = S.ser.files, tb = $("files").tBodies[0];
+  $("filewrap").hidden = !fs.length;
+  $("xhead").textContent = shortX();
+  tb.innerHTML = "";
+  fs.forEach((f, k) => {
+    const tr = document.createElement("tr");
+    tr.className = f.use ? "" : "off";
+    tr.innerHTML = `<td><input type="checkbox" ${f.use?"checked":""} aria-label="usar ${f.name}"></td>
+      <td class="fname">${f.name}</td><td class="${f.x==null?"nopow":""}"><input class="num" value="${f.x==null?"":numStr(f.x)}" title="${f.src?("lido do "+f.src):"não identificado"}"></td>`;
+    tr.querySelector("input[type=checkbox]").onchange = e => { f.use = e.target.checked; tr.className = f.use ? "" : "off"; updateSerCounts(); drawSeries(); };
+    tr.querySelector("input.num").onchange = e => { const v = parseNum(e.target.value); f.x = isFinite(v) ? v : null;
+      tr.cells[2].className = f.x==null ? "nopow" : ""; drawSeries(); };
+    tb.appendChild(tr);
+  });
+  $("serinfo").textContent = fs.length ? `${fs.length} arquivos` : "";
+  $("emptySer").hidden = !!fs.length;
+  updateSerCounts();
+}
+function shortX(){ return ($("xlabel").value || "x").trim(); }
+function xName(){ return shortX().replace(/\s*\(.*\)\s*$/, "").toLowerCase() || "x"; }
+function updateSerCounts(){
+  const used = S.ser.files.filter(f=>f.use).length;
+  $("sn").textContent = S.ser.files.length ? `${used} de ${S.ser.files.length}` : "—";
+}
+function serWindow(f){
+  const a = parseNum($("stmin").value), b = parseNum($("stmax").value);
+  let t = [], y = [];
+  for (let i=0;i<f.t.length;i++){ const ti=f.t[i]; if ((isNaN(a)||ti>=a)&&(isNaN(b)||ti<=b)){ t.push(ti); y.push(f.y[i]); } }
+  if ($("snorm").checked && f.y[0]) y = y.map(v => v / f.y[0]);
+  return {t, y};
+}
+function ssay(msg){ const l=$("slog"); l.textContent += msg + "\n"; l.scrollTop = l.scrollHeight; }
+
+/* cor de cada transiente pela posição na série (claro → escuro = menor → maior) */
+function serColors(){
+  const used = S.ser.files.filter(f=>f.use);
+  const xs = used.map(f=>f.x).filter(v=>v!=null);
+  const lo = Math.min(...xs), hi = Math.max(...xs);
+  const col = new Map();
+  used.forEach((f, k) => {
+    const r = (f.x!=null && hi>lo) ? (f.x-lo)/(hi-lo) : (used.length>1 ? k/(used.length-1) : 0.5);
+    col.set(f, heat(0.72 - 0.6*r));
+  });
+  return col;
+}
+
+async function startSeries(){
+  const fs = S.ser.files.filter(f=>f.use);
+  if (!fs.length){ ssay("Abra uma pasta ou escolha arquivos antes de ajustar a série."); return; }
+  let pr; try { pr = readParams(); } catch(e){ ssay("Erro: "+e.message); return; }
+  if (!pr.free.length){ ssay("Marque ao menos um parâmetro em “Livre”."); return; }
+  const items = fs.map(f => { const w = serWindow(f); return {name:f.name, t:w.t, y:w.y, x:f.x}; });
+  const options = {method:$("method").value, particles:+$("particles").value||20, iterations:+$("iters").value||30, restarts:+$("restarts").value||1};
+  try {
+    const r = await api("/api/batch", {model:S.model.key, params:pr.vals, free:pr.free, items, options, accuracy:+$("acc").value});
+    S.ser.jobId = r.id; S.ser.job = null; S.ser.lastLog = 0; S.ser.free = pr.free; S.ser.items = fs; S.ser.vals = pr.vals;
+    $("slog").textContent = "";
+    $("fit").disabled = true; $("stop").disabled = false;
+    $("sexp").disabled = $("srep").disabled = true;
+    $("sstate").className = "state run";
+    fillParSelector();
+    S.ser.poll = setInterval(pollSeries, 500);
+  } catch(e){ ssay("Erro: " + e.message); }
+}
+function fillParSelector(){
+  const free = (S.ser.free || []).map(f=>f.name), cur = $("spar").value, opts = [];
+  const lin = new Set(S.model.linear || []);
+  for (const n of free){
+    opts.push(`<option value="${n}">${labelOf(n)}</option>`);
+    if (lin.has(n)) opts.push(`<option value="${n}/x">${labelOf(n)} / ${xName()}</option>`);
+  }
+  $("spar").innerHTML = opts.join("");
+  const vals = [...$("spar").options].map(o=>o.value);
+  $("spar").value = vals.includes(cur) ? cur : (vals.find(v=>v.startsWith("th")) || vals[0] || "");
+  $("sxname").textContent = xName();
+}
+async function pollSeries(){
+  let j; try { j = await api("/api/batch/" + S.ser.jobId); } catch(e){ return; }
+  S.ser.job = j;
+  for (const m of j.log.slice(S.ser.lastLog)) ssay(m); S.ser.lastLog = j.log.length;
+  const done = j.results.filter(r=>r.status==="ok"||r.status==="erro").length;
+  $("sdone").textContent = `${done} de ${j.n_items}`;
+  $("selapsed").textContent = j.elapsed.toFixed(1) + " s";
+  const sub = (j.phase==="grade"||j.phase==="pso") ? (j.iteration/(j.n_iter||1))*0.85 : (j.phase ? 0.9 : 0);
+  const frac = j.status==="running" ? (done + (done<j.n_items ? sub : 0)) / j.n_items : 1;
+  $("sprog").style.width = (frac*100) + "%";
+  if (j.status === "queued") $("sstate").textContent = "Na fila: outro ajuste está rodando";
+  else if (j.status === "running"){
+    const it = j.results[j.item] || {};
+    const what = j.phase==="grade" ? `varredura ${j.iteration} de ${j.n_iter}` : j.phase==="pso" ? `PSO ${j.iteration} de ${j.n_iter}` : "refinando";
+    $("sstate").textContent = `Transiente ${j.item+1} de ${j.n_items} (${it.name||""}): ${what}`;
+  }
+  renderResults(); drawSeries();
+  if (j.status !== "running" && j.status !== "queued"){
+    clearInterval(S.ser.poll);
+    $("fit").disabled = false; $("stop").disabled = true;
+    $("sexp").disabled = $("srep").disabled = !done;
+    $("sstate").textContent = {done:"Série concluída", stopped:"Série interrompida", error:"A série falhou; veja o registro"}[j.status];
+    $("sstate").className = "state " + (j.status==="done" ? "done" : "");
+  }
+}
+function resultFor(f){
+  const j = S.ser.job; if (!j) return null;
+  const k = (S.ser.items||[]).indexOf(f); return k>=0 ? j.results[k] : null;
+}
+function renderResults(){
+  const th = $("results").tHead, tb = $("results").tBodies[0];
+  const free = (S.ser.free || []).map(f=>f.name);
+  const cols = ["Arquivo", shortX(), ...free.map(labelOf), "χ²", "R²"];
+  th.innerHTML = "<tr>" + cols.map(c=>`<th>${c}</th>`).join("") + "</tr>";
+  const col = serColors();
+  tb.innerHTML = "";
+  S.ser.files.filter(f=>f.use).forEach(f => {
+    const r = resultFor(f), tr = document.createElement("tr");
+    if (S.ser.sel === f) tr.className = "sel";
+    let cells = `<td><span class="swatch" style="background:${col.get(f)}"></span>${f.name}</td><td>${f.x==null?"—":fmt(f.x,4)}</td>`;
+    for (const n of free){
+      if (!r || r.status !== "ok"){ cells += `<td class="pend">${r ? (r.status==="erro" ? "erro" : r.status) : "—"}</td>`; continue; }
+      const v = r.params[n], e = (r.sigma||{})[n], w = (r.at_bound||[]).includes(n);
+      cells += `<td class="${w?"warn":""}" title="${w?"terminou no limite do intervalo":""}">${fmt(v,5)}${e!=null?" ± "+fmt(e,2):""}</td>`;
+    }
+    cells += r && r.status==="ok" ? `<td>${fmt(r.chi2,3)}</td><td>${r.r2!=null?r.r2.toFixed(5):"—"}</td>` : "<td></td><td></td>";
+    tr.innerHTML = cells;
+    tr.onclick = () => { S.ser.sel = S.ser.sel === f ? null : f; renderResults(); drawSeries(); };
+    tb.appendChild(tr);
+  });
+}
+function drawSeries(){
+  if (S.mode !== "ser") return;
+  const used = S.ser.files.filter(f=>f.use), col = serColors(), sel = S.ser.sel;
+  if (!used.length){ clear($("cSerT")); clear($("cSerP")); $("sstats").innerHTML = ""; return; }
+  /* transientes e ajustes */
+  const series = [];
+  for (const f of used){
+    const w = serWindow(f), dim = sel && sel !== f;
+    series.push({type:"points", x:w.t, y:w.y, color:col.get(f), size: sel===f?2.6:1.8, alpha: dim?0.15:0.75});
+    const r = resultFor(f);
+    if (r && r.status==="ok") series.push({type:"line", x:r.t, y:r.curve, color:col.get(f), width: sel===f?2.6:1.6, alpha: dim?0.2:1});
+  }
+  plot($("cSerT"), {series, xlabel:"tempo (s)", ylabel: $("snorm").checked ? "I(t)/I(0)" : "sinal"});
+  const xs = used.map(f=>f.x).filter(v=>v!=null);
+  $("serlegend").textContent = xs.length ? `cor: ${xName()} de ${fmt(Math.min(...xs),3)} (claro) a ${fmt(Math.max(...xs),3)} (escuro)` : "";
+  /* parâmetro × variável da série */
+  const key = $("spar").value, j = S.ser.job;
+  if (!key || !j){ clear($("cSerP")); $("sstats").innerHTML = j ? "" : "Ajuste a série para ver os parâmetros em função da " + xName() + "."; return; }
+  const ratio = key.endsWith("/x"), name = ratio ? key.slice(0,-2) : key;
+  const pts = [];
+  for (const f of used){ const r = resultFor(f); if (!r || r.status!=="ok" || f.x==null) continue;
+    let v = r.params[name], e = (r.sigma||{})[name];
+    if (ratio){ v = v / f.x; e = e!=null ? e / f.x : null; }
+    pts.push({x:f.x, y:v, e:e??NaN, c:col.get(f), f}); }
+  if (!pts.length){ clear($("cSerP")); $("sstats").innerHTML = "Nenhum transiente ajustado com " + xName() + " definida."; return; }
+  const st = (j.stats||{})[name], xmax = Math.max(...pts.map(p=>p.x));
+  const ser2 = [], txt = [];
+  if (st && st.kind === "proporcional"){
+    if (ratio){
+      ser2.push({type:"line", x:[0, xmax*1.05], y:[st.slope0, st.slope0], color:getVar("--fit"), width:1.5, dash:[6,4]});
+      txt.push(`<b>${labelOf(name)} / ${xName()}</b> = ${fmt(st.slope0,4)} ± ${fmt(st.slope0_err,2)} (inclinação da reta pela origem).`);
+      const r = st.ratio || []; if (r.length > 1){ const m = r.reduce((a,b)=>a+b,0)/r.length, sd = Math.sqrt(r.reduce((a,b)=>a+(b-m)**2,0)/(r.length-1));
+        txt.push(`Média dos ${r.length} valores: ${fmt(m,4)} ± ${fmt(sd,2)} (desvio-padrão).`); }
+    } else {
+      ser2.push({type:"line", x:[0, xmax*1.05], y:[0, st.slope0*xmax*1.05], color:getVar("--fit"), width:1.5, dash:[6,4]});
+      txt.push(`Reta pela origem: <b>${labelOf(name)} / ${xName()} = ${fmt(st.slope0,4)} ± ${fmt(st.slope0_err,2)}</b>.`);
+      if (st.line){ const ln = st.line, i0 = Math.abs(ln.intercept) > 2*ln.intercept_err;
+        txt.push(`Reta com intercepto: inclinação ${fmt(ln.slope,4)} ± ${fmt(ln.slope_err,2)}, intercepto ${fmt(ln.intercept,3)} ± ${fmt(ln.intercept_err,2)}` +
+                 (ln.r2!=null?`, R² = ${ln.r2.toFixed(4)}`:"") + "." + (i0 ? ' <span class="warn">O intercepto difere de zero: a dependência pode não ser linear.</span>' : "")); }
+    }
+  } else if (st && st.kind === "constante" && !ratio){
+    ser2.push({type:"line", x:[0, xmax*1.05], y:[st.mean, st.mean], color:getVar("--fit"), width:1.5});
+    if (isFinite(st.std)) for (const sgn of [-1,1]) ser2.push({type:"line", x:[0, xmax*1.05], y:[st.mean+sgn*st.std, st.mean+sgn*st.std], color:getVar("--fit"), width:1, dash:[4,4], alpha:0.6});
+    txt.push(`<b>Média: ${fmt(st.mean,4)} ± ${fmt(st.std,2)}</b> (desvio-padrão; erro da média ${fmt(st.sem,2)}), ${st.n} transientes.`);
+    if (st.line) txt.push(`Inclinação com a ${xName()}: ${fmt(st.line.slope,3)} ± ${fmt(st.line.slope_err,2)}. ` +
+      (st.trend ? `<span class="warn">Tendência significativa: o parâmetro varia com a ${xName()}.</span>` : "Sem tendência significativa."));
+  }
+  ser2.push({type:"points", x:pts.map(p=>p.x), y:pts.map(p=>p.y), err:pts.map(p=>p.e), colors:pts.map(p=>p.c), color:"#555", size:4.5});
+  if (sel){ const p = pts.find(q=>q.f===sel); if (p) ser2.push({type:"points", x:[p.x], y:[p.y], color:"rgba(0,0,0,0)", size:4.5, ring:getVar("--fit")}); }
+  const ys = pts.map(p=>p.y).concat(pts.map(p=>p.y+(isFinite(p.e)?p.e:0)), pts.map(p=>p.y-(isFinite(p.e)?p.e:0)));
+  const prop = st && st.kind==="proporcional" && !ratio;
+  const yr = prop ? [Math.min(0, ...ys), Math.max(0, ...ys)] : undefined;
+  plot($("cSerP"), {series:ser2, xr:[0, xmax*1.05], yr, xlabel:shortX(), ylabel: ratio ? `${labelOf(name)} / ${xName()}` : labelOf(name)});
+  $("sstats").innerHTML = txt.join("<br>");
+}
+
+function seriesBase(){
+  const names = S.ser.files.map(f=>f.name.replace(/\.[^.]+$/,""));
+  let p = names[0] || "serie"; for (const n of names) while (!n.startsWith(p)) p = p.slice(0,-1);
+  return (p.replace(/[_\-\s]+$/,"") || "serie");
+}
+function exportSeriesCSV(){
+  const free = (S.ser.free||[]).map(f=>f.name), lin = new Set(S.model.linear || []);
+  const head = ["arquivo", shortX()];
+  for (const n of free){ head.push(n, "sigma_"+n); if (lin.has(n)) head.push(n+"/x"); }
+  head.push("chi2","R2","no_limite");
+  let s = head.join(",") + "\n";
+  for (const f of S.ser.files.filter(f=>f.use)){
+    const r = resultFor(f); if (!r || r.status!=="ok") continue;
+    const row = [`"${f.name}"`, f.x ?? ""];
+    for (const n of free){ row.push(r.params[n], (r.sigma||{})[n] ?? ""); if (lin.has(n)) row.push(f.x ? r.params[n]/f.x : ""); }
+    row.push(r.chi2, r.r2 ?? "", `"${(r.at_bound||[]).join(" ")}"`);
+    s += row.join(",") + "\n";
+  }
+  download(seriesBase()+"_serie.csv", s);
+}
+function exportSeriesReport(){
+  const j = S.ser.job; if (!j) return;
+  const free = (S.ser.free||[]).map(f=>f.name), vals = S.ser.vals || {};
+  let s = `Série de transientes\nModelo: ${S.model.title}\nData: ${new Date().toLocaleString("pt-BR")}\n`;
+  s += `Variável da série: ${shortX()}\nNormalização por I(0): ${$("snorm").checked?"sim":"não"}\n`;
+  s += `Janela: ${$("stmin").value||"início"} a ${$("stmax").value||"fim"} s\nMétodo: ${$("method").selectedOptions[0].text}\n\n`;
+  s += "Parâmetros fixos\n";
+  for (const p of S.model.params) if (!free.includes(p.name)) s += `  ${p.name} (${p.label}${p.unit?", "+p.unit:""}) = ${vals[p.name]}\n`;
+  s += "Parâmetros livres (limites)\n";
+  for (const f of S.ser.free) s += `  ${f.name} (${labelOf(f.name)}): ${f.lo} a ${f.hi}\n`;
+  s += `\nResultados\narquivo\t${shortX()}\t` + free.map(n=>`${n}\tsigma`).join("\t") + "\tchi2\tR2\n";
+  for (const f of S.ser.files.filter(f=>f.use)){ const r = resultFor(f); if (!r) continue;
+    if (r.status!=="ok"){ s += `${f.name}\t${f.x??""}\t${r.status}\n`; continue; }
+    s += `${f.name}\t${f.x??""}\t` + free.map(n=>`${r.params[n]}\t${(r.sigma||{})[n]??""}`).join("\t") + `\t${r.chi2}\t${r.r2??""}\n`; }
+  s += "\nEstatística da série\n";
+  for (const [n, st] of Object.entries(j.stats||{})){
+    if (st.kind === "proporcional"){
+      s += `  ${n} (${labelOf(n)}): ${n}/x pela origem = ${st.slope0} ± ${st.slope0_err}\n`;
+      if (st.line) s += `      reta com intercepto: inclinação ${st.line.slope} ± ${st.line.slope_err}, intercepto ${st.line.intercept} ± ${st.line.intercept_err}, R² = ${st.line.r2}\n`;
+    } else {
+      s += `  ${n} (${labelOf(n)}): média ${st.mean} ± ${st.std} (desvio-padrão), erro da média ${st.sem}, n = ${st.n}\n`;
+      if (st.line) s += `      inclinação com x: ${st.line.slope} ± ${st.line.slope_err}${st.trend?" (significativa)":""}\n`;
+    }
+  }
+  download(seriesBase()+"_serie_relatorio.txt", s);
+}
+
+/* ---------- eventos ---------- */
+$("drop").onclick = () => $("file").click();
+$("drop").onkeydown = e => { if (e.key==="Enter"||e.key===" "){ e.preventDefault(); $("file").click(); } };
+$("file").onchange = async e => { const f=e.target.files[0]; if (f) loadText(f.name, await f.text()); e.target.value=""; };
+for (const ev of ["dragover","dragenter"]) $("drop").addEventListener(ev, e=>{e.preventDefault(); $("drop").classList.add("over");});
+for (const ev of ["dragleave","drop"]) $("drop").addEventListener(ev, e=>{e.preventDefault(); $("drop").classList.remove("over");});
+$("drop").addEventListener("drop", async e => { const f=e.dataTransfer.files[0]; if (f) loadText(f.name, await f.text()); });
+$("colT").onchange = $("colY").onchange = $("norm").onchange = applyColumns;
+$("tmin").onchange = $("tmax").onchange = () => { S.curve=null; updateStats(); redraw(); };
+$("model").onchange = () => { S.model = S.models.find(m=>m.key===$("model").value); renderModel(); updateStats(); };
+$("sim").onclick = simulate;
+$("fit").onclick = () => S.mode === "ser" ? startSeries() : startFit();
+$("stop").onclick = () => {
+  if (S.mode === "ser" && S.ser.jobId) api(`/api/batch/${S.ser.jobId}/stop`, {});
+  else if (S.jobId) api(`/api/job/${S.jobId}/stop`, {});
+};
+$("modeOne").onclick = () => setMode("one");
+$("modeSer").onclick = () => setMode("ser");
+$("openDir").onclick = () => $("serDir").click();
+$("openFiles").onclick = () => $("serFiles").click();
+$("sdrop").onclick = () => $("serDir").click();
+$("sdrop").onkeydown = e => { if (e.key==="Enter"||e.key===" "){ e.preventDefault(); $("serDir").click(); } };
+for (const id of ["serDir","serFiles"]) $(id).onchange = e => { loadSeriesFiles(e.target.files); e.target.value=""; };
+for (const ev of ["dragover","dragenter"]) $("sdrop").addEventListener(ev, e=>{e.preventDefault(); $("sdrop").classList.add("over");});
+for (const ev of ["dragleave","drop"]) $("sdrop").addEventListener(ev, e=>{e.preventDefault(); $("sdrop").classList.remove("over");});
+$("sdrop").addEventListener("drop", async e => {
+  const items = [...(e.dataTransfer.items||[])].map(i => i.webkitGetAsEntry && i.webkitGetAsEntry()).filter(Boolean);
+  if (items.length){ const out = []; for (const en of items) await entriesToFiles(en, out); loadSeriesFiles(out); }
+  else loadSeriesFiles(e.dataTransfer.files);
+});
+$("snorm").onchange = $("stmin").onchange = $("stmax").onchange = () => drawSeries();
+$("xlabel").onchange = () => { $("xhead").textContent = shortX(); fillParSelector(); renderResults(); drawSeries(); };
+$("spar").onchange = drawSeries;
+$("sexp").onclick = exportSeriesCSV; $("srep").onclick = exportSeriesReport;
+$("exp").onclick = exportCSV; $("rep").onclick = exportReport;
+$("sx").onchange = $("sy").onchange = drawJob;
+const METHOD_HINT = {
+  "auto": "Os θ (e I0) entram linearmente na fase: o programa varre os demais parâmetros livres e ajusta os θ em cada ponto. Com mais de dois parâmetros livres além dos θ e de I0, usa o enxame, com as opções abaixo.",
+  "pso+lm": "Enxame para a busca global, repetido em várias rodadas, e Levenberg–Marquardt para refinar.",
+  "pso": "Só o enxame, sem refinamento local nem incertezas.",
+  "lm": "Refinamento local a partir dos valores atuais. Rápido, mas depende de um bom ponto de partida."};
+$("method").onchange = () => { $("methodhint").textContent = METHOD_HINT[$("method").value]; };
+$("method").onchange();
+new ResizeObserver(() => S.mode === "ser" ? drawSeries() : redraw()).observe(document.querySelector(".app"));
+
+setInterval(() => fetch("/api/ping").catch(()=>{}), 5000);  /* o aplicativo encerra sem pings */
+(async function init(){
+  S.models = await api("/api/models");
+  $("model").innerHTML = S.models.map(m=>`<option value="${m.key}">${m.title}</option>`).join("");
+  S.model = S.models[0]; renderModel();
+  const ex = await api("/api/examples");
+  $("examples").innerHTML = ex.map(n=>`<button class="btn" style="padding:2px 8px;font-size:12.5px" data-ex="${n}">${n.replace(/\.dat$/,"").replace(/_/g," ")}</button>`).join(" ");
+  for (const b of $("examples").querySelectorAll("button")) b.onclick = async () => { const r = await api("/api/example/"+b.dataset.ex); loadText(r.name, r.text); };
+  const sex = await api("/api/series-examples");
+  $("sexamples").innerHTML = sex.map((d,k)=>`<button class="btn" style="padding:2px 8px;font-size:12.5px" data-k="${k}">${d.name.replace(/^serie_/,"").replace(/_/g," ")}</button>`).join(" ");
+  const exLabel = d => "Exemplo: série sintética " + d.name.replace(/^serie_/,"").replace(/_/g," ");
+  for (const b of $("sexamples").querySelectorAll("button")) b.onclick = () => loadSeriesTexts(sex[+b.dataset.k].files, exLabel(sex[+b.dataset.k]));
+  /* o modo Série já abre com uma série de exemplo, para mostrar como funciona */
+  const first = sex.find(d => d.name === "serie_vidro_volts") || sex[0];
+  if (first) await loadSeriesTexts(first.files, exLabel(first));
+  redraw();
+})();
+</script>
+</body>
+</html>

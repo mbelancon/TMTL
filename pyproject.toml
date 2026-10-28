@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tlfit"
+version = "2.0.0"
+description = "Ajuste de transientes de lente térmica e espelho térmico (TLLAM, TM-HAM on/off)"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+dependencies = ["numpy>=1.21", "scipy>=1.7"]
+
+[project.scripts]
+tlfit = "tlfit.__main__:main"
+
+[tool.setuptools]
+packages = ["tlfit"]
+
+[tool.setuptools.package-data]
+tlfit = ["static/*.html", "examples/*.dat", "examples/*/*.dat"]

@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.venv-build/
+build/
+dist/
+c/*.exe
+c/*.dll
+c/*.so
+result-*
+montar_portatil.log
