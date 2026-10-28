@@ -1,4 +1,5 @@
 # Transiente sintético: modelo TM-HAM on/off (D=3.46e-6, theta=-0.57, t_off=0.899 s) + ruído 5e-4
+# tlfit: modelo=tmhamtl
 0 1.00006
 0.002 0.957839
 0.004 0.931931

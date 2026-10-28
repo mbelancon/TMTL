@@ -118,7 +118,7 @@ def series_stats(model: Model, results):
     for nm in names:
         y = np.array([r["params"][nm] for r in ok], float)
         s = {"n": len(ok)}
-        if nm in model.linear:
+        if nm in getattr(model, "proportional", ()) or nm in model.linear:
             # proporcional à potência: inclinação pela origem e reta completa
             a, ea = _line_origin(x, y)
             s.update(kind="proporcional", slope0=a, slope0_err=ea, line=_line(x, y),

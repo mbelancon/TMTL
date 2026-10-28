@@ -139,5 +139,113 @@ print(f"série    θs/P = {a:.5f} ± {ea:.5f} rad/mW (verdadeiro 0,020); "
       f"D = {st['d']['mean']:.4e} ± {st['d']['std']:.1e} (verdadeiro 5,4e-7)")
 ok &= abs(a - 0.020) < 3 * ea and abs(st["d"]["mean"] - 5.4e-7) < 3 * st["d"]["std"]
 
+# 7. Espelho térmico BAM: Ĝ(α,t) em forma fechada/série contra a quadratura direta
+#    de dĜ/dt = [A_e erfc(αs) − α e^{−α²s²} erfcx(A_e s)]/(A_e² − α²), s = √(Dτ).
+from scipy.integrate import quad  # noqa: E402
+from scipy.special import erfc as _erfc, erfcx as _erfcx, i0e, i1e, j0  # noqa: E402
+
+from tlfit.models import bam_g  # noqa: E402
+
+xg, wg = np.polynomial.legendre.leggauss(40)
+edges = np.concatenate([[0], np.logspace(-8, 0, 60)])
+
+
+def g_ref(a, t, ae, d):
+    tot = 0.0
+    for lo, hi in zip(edges[:-1], edges[1:]):            # τ = t x², x ∈ [0, 1]
+        x = 0.5 * (hi - lo) * xg + 0.5 * (hi + lo)
+        s = np.sqrt(d * t) * x
+        f = (ae * _erfc(a * s) - a * np.exp(-a * a * s * s) * _erfcx(ae * s)) / (ae * ae - a * a)
+        tot += np.sum(0.5 * (hi - lo) * wg * f * 2 * t * x)
+    return tot
+
+
+rng = np.random.default_rng(2)
+worst = 0.0
+for _ in range(400):
+    ae, t = 10 ** rng.uniform(-1, 8), 10 ** rng.uniform(-6, 1)
+    a = 10 ** rng.uniform(-1, 6.5) if rng.random() < 0.7 else ae * (1 + 10 ** rng.uniform(-5, -0.5) * rng.choice([-1, 1]))
+    v = bam_g(np.array([a]), np.array([t]), ae, 6e-7)[0]
+    worst = max(worst, abs(v / g_ref(a, t, ae, 6e-7) - 1))
+print(f"TM-BAM   Ĝ(α,t) contra quadratura em τ: erro relativo máx {worst:.1e}")
+ok &= worst < 1e-6
+
+# 8. TM-LAM: fase pelo núcleo em α contra a forma fechada em g (Sato 2008, eq. 32)
+D_, w_, m_ = 6e-7, 44e-6, 10.0
+tc_ = w_ * w_ / (4 * D_)
+
+
+def eq32(g, t):
+    x, x0 = g * m_ / (1 + 2 * t / tc_), g * m_
+    A = (1 + 2 * t / tc_) ** -0.5 * ((1 + 2 * g * m_ + 2 * t / tc_) * i0e(x) + 2 * g * m_ * i1e(x))
+    B = (1 + 2 * g * m_) * i0e(x0) + 2 * g * m_ * i1e(x0)
+    return np.sqrt(2 * np.pi) * w_ * (A - B)
+
+
+worst = 0.0
+for t in (0.5 * tc_, 5 * tc_, 50 * tc_):
+    for g in (0.3, 1.0, 3.0):
+        K = lambda a: MODELS["tmlam"].kernel(np.array(t), a, dict(d=D_, th=1.0, w0=w_), None)  # noqa: E731
+        num = quad(lambda a: K(a) * (j0(a * w_ * np.sqrt(m_ * g)) - 1), 0, 40 / w_,
+                   limit=800, epsrel=1e-11, epsabs=1e-14)[0]
+        ref = eq32(g, t) - eq32(0, t)
+        worst = max(worst, abs(num / ref - 1))
+print(f"TM-LAM   fase contra a eq. 32 de Sato et al. (2008): erro relativo máx {worst:.1e}")
+ok &= worst < 1e-7
+
+# 9. Limites: BAM → HAM (A_e grande, θ_HAM = θ_TM/A_e, com desligamento) e BAM → LAM
+#    (A_e → 0); amostra finita → LAM semi-infinito (l grande).
+t = np.linspace(0, 1.5, 300)
+ham = MODELS["tmhamtl"].defaults()
+I_ham = MODELS["tmhamtl"].intensity(t, ham)
+geo = {k: ham[k] for k in ("d", "m", "w0", "v", "of", "scale")}
+I_bam = MODELS["tmbam"].intensity(t, dict(geo, th=ham["th"] * 1e8, ae=1e8))
+e_ham = np.abs(I_bam - I_ham).max() / np.abs(I_ham - 1).max()
+t = np.linspace(0, 0.2, 300)
+geo = dict(d=6e-7, th=-120.0, m=71.0, w0=44e-6, v=5.2, of=0.0, scale=1.0)
+I_lam = MODELS["tmlam"].intensity(t, geo)
+e_lam = np.abs(MODELS["tmbam"].intensity(t, dict(geo, ae=1e-4)) - I_lam).max() / np.abs(I_lam - 1).max()
+e_fin = np.abs(MODELS["tmfinito"].intensity(t, dict(geo, l=1.0)) - I_lam).max() / np.abs(I_lam - 1).max()
+print(f"limites  BAM→HAM {e_ham:.1e}   BAM→LAM {e_lam:.1e}   finito→LAM {e_fin:.1e} (relativo ao sinal)")
+ok &= e_ham < 1e-7 and e_lam < 1e-5 and e_fin < 1e-9
+
+# 10. Shen (forma fechada) contra a integral de difração com a mesma fase, θ pequeno
+from tlfit.models import Model  # noqa: E402
+
+
+class _TLNum(Model):
+    def kernel(self, t, a, p, acc):
+        return -p["th"] * np.exp(-(a * p["w0"]) ** 2 / 8) * (-np.expm1(-p["d"] * a * a * t)) / a
+
+
+t = np.linspace(0, 0.5, 300)
+ps = dict(d=1.4e-7, th=0.01, m=30.0, w0=50e-6, v=2.0, scale=1.0)
+I_s = MODELS["tlshen"].intensity(t, ps)
+e_s = np.abs(_TLNum("x", "", "").intensity(t, ps) - I_s).max() / np.abs(I_s - 1).max()
+print(f"TL Shen  contra a integral de difração (θ = 0,01): diferença {e_s:.1e} do sinal (ordem θ)")
+ok &= e_s < 2e-3
+
+# 11. Ajustes dos exemplos sintéticos dos modelos novos (partindo dos valores padrão)
+import re  # noqa: E402
+
+for fn in ("tmlam_vidro_sintetico.dat", "tmbam_vidro_sintetico.dat",
+           "tmfinito_vidro_sintetico.dat", "tlshen_vidro_sintetico.dat"):
+    txt = (ROOT / "tlfit" / "examples" / fn).read_text(encoding="utf-8")
+    key = re.search(r"# tlfit: modelo=(\w+)", txt).group(1)
+    true = {k: float(v) for k, v in re.findall(r"\b(d|th) = (\S+?)[;,]", txt)}
+    mm = MODELS[key]
+    p = mm.defaults()
+    p.update({k: float(v) for k, v in re.findall(r"(\w+)=(\S+)", txt.splitlines()[1].split("modelo=")[1])
+              if k != key})
+    dd, _ = parse_table(txt)
+    thp = next(q for q in mm.params if q.name == "th")
+    prob = FitProblem(mm, dd[:, 0], dd[:, 1], p, [make_free("d", 1e-8, 1e-4), make_free("th", thp.lo, thp.hi)])
+    r = run_fit(prob, method="auto", log=lambda s: None)
+    zd = (r["params"]["d"] - true["d"]) / r["sigma"]["d"]
+    zt = (r["params"]["th"] - true["th"]) / r["sigma"]["th"]
+    print(f"ajuste   {key:9s} D = {r['params']['d']:.4e} ({zd:+.1f}σ)  θ = {r['params']['th']:.5g} "
+          f"({zt:+.1f}σ)  ({r['seconds']:.1f} s)")
+    ok &= abs(zd) < 4 and abs(zt) < 4
+
 print("OK" if ok else "FALHOU")
 sys.exit(0 if ok else 1)

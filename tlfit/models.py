@@ -211,6 +211,8 @@ class Model:
     # parâmetros que entram linearmente na fase: Φ = Σ θ_j Φ_j (ver PhaseCache).
     # Atributo de classe (sem anotação, para não virar campo da dataclass).
     linear = ()
+    # False para modelos em forma fechada (sem K·M): o ajuste em dois níveis não se aplica
+    phase_based = True
 
     # implementado pelas subclasses
     def kernel(self, t, alpha, p, acc):
@@ -304,6 +306,14 @@ class PhaseCache:
         for th, P in zip(theta, G["Pj"]):
             phi = phi + th * P
         return phi
+
+    def unit_phase(self):
+        """Maior |Φ_j| (em rad) por unidade de cada θ_j, na malha atual."""
+        if not self.ok:
+            return [1.0] * len(self.lin)
+        if not hasattr(self, "base"):
+            self._phase([0.0] * len(self.lin))
+        return [float(np.abs(P).max()) or 1.0 for P in self.grid["Pj"]]
 
     def intensity(self, theta, scale=1.0, jac=False):
         """I(t) para os θ lineares dados. Com jac=True devolve também
@@ -524,4 +534,245 @@ class TMHAMTL(Model):
         return pref * gauss * J
 
 
-MODELS = {m.key: m for m in (TLLAM(), TMHAMTL())}
+# ---------------------------------------------------------------------------
+# Espelho térmico: LAM, BAM (lei de Beer) e LAM com espessura finita
+#   Sato et al., J. Appl. Phys. 104, 053520 (2008)  — LAM, BAM, HAM
+#   Astrath et al., J. Opt. Soc. Am. B 28, 1735 (2011) — espessura finita
+#
+# Com θ_TM = −P_e A_e α_T (1+ν) φ/(λ_p k) [1/m], a fase é
+#   Φ(g,t) = 4 θ_TM ∫ e^{−α²w²/8} F(α,t) [J0(α w √(mg)) − 1] dα,
+#   F_LAM  = (1 − e^{−Dα²t})/α²                       (Sato eq. 24/32)
+#   F_fin  = h(lα) (1 − e^{−Dα²t})/α²,  h(x) = (cosh x − 1)/(x + sinh x)
+#                                                      (Astrath 2011, eq. 10)
+#   F_BAM  = α D Ĝ(α,t),  Ĝ = ∫_0^∞ T̂(α,z,t) e^{−αz} dz  (fonte e^{−A_e z})
+# Ĝ sai de dĜ/dt = [A_e erfc(αs) − α e^{−α²s²} erfcx(A_e s)]/(A_e² − α²),
+# s = √(Dt), integrada em forma fechada (ou por série quando s·max(α, A_e) ≤ 0,75).
+# Limites: A_e → 0 recupera o LAM; A_e → ∞ recupera o HAM (θ_HAM = θ_TM/A_e).
+# Desligamento em t_off por superposição: F(t) − F(t − t_off).
+# ---------------------------------------------------------------------------
+
+from math import factorial as _factorial
+from scipy.special import gamma as _gamma_fn
+
+_XERFC_C = np.array([(-1) ** n / (_factorial(n) * (2 * n + 1) * (2 * n + 3)) for n in range(14)])
+
+
+def _xerfc_int(X):
+    """∫_0^X x erfc(x) dx (série de Taylor para X pequeno, sem cancelamento)."""
+    out = np.empty_like(X)
+    sm = X < 0.3
+    xs = X[sm]
+    out[sm] = xs ** 2 / 2 - (2 / SQRT_PI) * xs ** 3 * np.polyval(_XERFC_C[::-1], xs ** 2)
+    xb = X[~sm]
+    out[~sm] = xb * xb * erfc(xb) / 2 + erf(xb) / 4 - xb * np.exp(-xb * xb) / (2 * SQRT_PI)
+    return out
+
+
+def _bam_closed(a, t, ae, d):
+    s = np.sqrt(d * t)
+    x, y = a * s, ae * s
+    i1 = 2 * t * _xerfc_int(x) / (x * x)                     # ∫_0^t erfc(α√(Dτ)) dτ
+    c = (ae * ae - a * a) * d
+    i2 = (np.exp(-x * x) * erfcx(y) - 1) / c + ae * erf(x) / (c * a)
+    return (ae * i1 - a * i2) / (ae * ae - a * a)
+
+
+_BAM_NS = 30
+_BAM_GH = _gamma_fn(np.arange(_BAM_NS) / 2 + 1)
+_BAM_KF = np.array([1 / _factorial(k) for k in range(_BAM_NS // 2)])
+
+
+def _bam_series(a, t, ae, d):
+    """Ĝ = t/(A_e+α) Σ_n p_n ŝ^n/(n/2+1), em variáveis escaladas por σ = max(α, A_e).
+
+    Vem de erfcx(z) = Σ (−z)^n/Γ(n/2+1): o fator (A_e² − α²) cancela termo a termo,
+    então não há divisão por números pequenos perto de α = A_e. Os coeficientes p_n
+    dependem só de α: são calculados uma vez por α distinto."""
+    au, inv = np.unique(a, return_inverse=True)
+    sig = np.maximum(au, ae)
+    ah, Ah = au / sig, ae / sig
+    n = _BAM_NS
+    S = np.empty((n, au.size))
+    S[0] = 1.0
+    ahk = np.ones(au.size)
+    for k in range(1, n):
+        ahk *= ah
+        S[k] = Ah * S[k - 1] + ahk
+    A = np.zeros((n, au.size))
+    A[0] = 1.0
+    c = -Ah * ah
+    for k in range(2, n):
+        A[k] = ((-1) ** k / _BAM_GH[k]) * c * S[k - 2]
+    E = np.zeros((n, au.size))
+    E[0] = 1.0
+    q = -(ah * ah)
+    for j in range(1, n // 2):
+        E[2 * j] = E[2 * j - 2] * q / j
+    P = np.zeros((n, au.size))
+    for k in range(0, n, 2):                 # E só tem termos pares
+        P[k:] += E[k] * A[:n - k]
+    P /= (np.arange(n) / 2 + 1)[:, None]
+    P = P[:, inv]
+    sh = sig[inv] * np.sqrt(d * t)
+    acc = np.zeros(a.size)
+    for k in range(n - 1, -1, -1):
+        acc = acc * sh + P[k]
+    return t / (ae + a) * acc
+
+
+def bam_g(a, t, ae, d, rel=1e-4, zmax=0.75):
+    """Ĝ(α,t) do modelo BAM (fonte e^{−A_e z}, superfície livre e adiabática).
+
+    Conferido contra a quadratura direta de dĜ/dt (erro relativo < 3e-7 em
+    10⁻¹ < A_e < 10⁸ m⁻¹, 10⁻⁶ < t < 10 s, inclusive α ≈ A_e)."""
+    shape = np.broadcast_shapes(np.shape(a), np.shape(t))
+    a = np.broadcast_to(np.asarray(a, float), shape).ravel()
+    t = np.broadcast_to(np.asarray(t, float), shape).ravel()
+    out = np.zeros(a.size)
+    pos = t > 0
+    z = np.maximum(a, ae) * np.sqrt(d * np.where(pos, t, 0.0))
+    ser = pos & (z <= zmax)
+    if np.any(ser):
+        out[ser] = _bam_series(a[ser], t[ser], ae, d)
+    cl = pos & ~ser
+    if np.any(cl):
+        ac, tcl = a[cl], t[cl]
+        with np.errstate(all="ignore"):
+            g = _bam_closed(ac, tcl, ae, d)
+        near = np.abs(ac / ae - 1) < rel
+        if np.any(near):   # singularidade removível em α = A_e: interpolação linear
+            tn = tcl[near]
+            lo = _bam_closed(np.full(tn.size, ae * (1 - rel)), tn, ae, d)
+            hi = _bam_closed(np.full(tn.size, ae * (1 + rel)), tn, ae, d)
+            g[near] = 0.5 * (lo + hi) + (ac[near] - ae) / (2 * rel * ae) * (hi - lo)
+        out[cl] = g
+    return out.reshape(shape)
+
+
+class _TMBase(Model):
+    """Espelho térmico (fase 4 θ_TM ∫ e^{−α²w²/8} F(α,t) [J0 − 1] dα) com on/off."""
+    linear = ("th",)
+
+    def _F(self, t, a, p):
+        raise NotImplementedError
+
+    def kernel(self, t, a, p, acc):
+        tt = np.broadcast_to(t, np.broadcast_shapes(np.shape(t), np.shape(a)))
+        F = self._F(tt, a, p)
+        of = p.get("of", 0.0)
+        if of and of > 0 and np.any(tt > of):
+            F = F - self._F(np.maximum(tt - of, 0.0), a, p)
+        return 4 * p["th"] * np.exp(-(a * p["w0"]) ** 2 / 8) * F
+
+
+_TM_COMMON = lambda th_lo, th_hi: [
+    Param("d", 6e-7, "D amostra", "m²/s", True, 1e-8, 1e-4),
+    Param("th", -300.0, "θ TM", "1/m", True, th_lo, th_hi),
+    Param("m", 20.0, "m", ""),
+    Param("w0", 44e-6, "w0e", "m"),
+    Param("v", 5.2, "V", ""),
+]
+
+
+class TMLAM(_TMBase):
+    def __init__(self):
+        super().__init__(
+            key="tmlam",
+            title="Espelho térmico LAM (baixa absorção)",
+            description="Espelho térmico para amostra semi-infinita com fonte uniforme "
+                        "em z (A_e·espessura ≪ 1). Sato et al., J. Appl. Phys. 104, "
+                        "053520 (2008), eq. 32. θ_TM = −P_e A_e α_T(1+ν)φ/(λ_p k), em 1/m.",
+            params=_TM_COMMON(-1e6, 1e6) + [
+                Param("of", 0.0, "t_off (0 = sem desligar)", "s"),
+                Param("scale", 1.0, "I0 (escala)", "", False, 0.8, 1.2),
+            ],
+        )
+
+    def _F(self, t, a, p):
+        return -np.expm1(-p["d"] * a * a * t) / (a * a)
+
+
+class TMFinito(_TMBase):
+    def __init__(self):
+        super().__init__(
+            key="tmfinito",
+            title="Espelho térmico LAM, amostra finita",
+            description="Espelho térmico de baixa absorção em amostra de espessura l, "
+                        "com as duas faces livres. Astrath et al., J. Opt. Soc. Am. B 28, "
+                        "1735 (2011), eq. 10. Tende ao LAM semi-infinito para l grande.",
+            params=_TM_COMMON(-1e6, 1e6) + [
+                Param("l", 1e-3, "l espessura", "m"),
+                Param("of", 0.0, "t_off (0 = sem desligar)", "s"),
+                Param("scale", 1.0, "I0 (escala)", "", False, 0.8, 1.2),
+            ],
+        )
+
+    def _F(self, t, a, p):
+        return _hh(p["l"] * a) * -np.expm1(-p["d"] * a * a * t) / (a * a)
+
+
+class TMBAM(_TMBase):
+    def __init__(self):
+        super().__init__(
+            key="tmbam",
+            title="Espelho térmico BAM (lei de Beer)",
+            description="Espelho térmico com absorção pela lei de Beer, válido para "
+                        "qualquer A_e (amostra semi-infinita). Sato et al., J. Appl. Phys. "
+                        "104, 053520 (2008), eq. 33–34. Tende ao LAM (A_e → 0) e ao HAM "
+                        "(A_e → ∞, com θ_HAM = θ_TM/A_e).",
+            params=_TM_COMMON(-1e9, 1e9) + [
+                Param("ae", 1000.0, "A_e absorção", "1/m", False, 1.0, 1e8),
+                Param("of", 0.0, "t_off (0 = sem desligar)", "s"),
+                Param("scale", 1.0, "I0 (escala)", "", False, 0.8, 1.2),
+            ],
+        )
+
+    def _F(self, t, a, p):
+        d = p["d"]
+        return a * d * bam_g(a, t, float(p["ae"]), d)
+
+
+# ---------------------------------------------------------------------------
+# Lente térmica de Shen (forma fechada, modo descasado)
+#   Shen, Lowe & Snook, Chem. Phys. 165, 385 (1992); Baesso et al., JAP 75, 3732 (1994)
+#   I(t) = I(0) [1 − (θ/2) atan(2mV / ([(1+2m)² + V²] t_c/(2t) + 1 + 2m + V²))]²
+# ---------------------------------------------------------------------------
+
+
+class TLShen(Model):
+    linear = ()
+    phase_based = False     # sem fase integral: o ajuste usa PSO + LM direto
+    proportional = ("th",)  # na série, θ ∝ P (inclinação θ/P)
+
+    def __init__(self):
+        super().__init__(
+            key="tlshen",
+            title="Lente térmica de Shen (clássico)",
+            description="Expressão fechada do modelo aberrante de Shen para lente "
+                        "térmica no modo descasado (amostra fina, baixa absorção, θ "
+                        "pequeno). t_c = w0e²/(4D). Baesso, Shen & Snook, J. Appl. Phys. "
+                        "75, 3732 (1994), eq. 10.",
+            params=[
+                Param("d", 1.4e-7, "D amostra", "m²/s", True, 1e-9, 1e-4),
+                Param("th", -0.1, "θ", "rad", True, -3, 3),
+                Param("m", 30.0, "m", ""),
+                Param("w0", 50e-6, "w0e", "m"),
+                Param("v", 2.0, "V", ""),
+                Param("scale", 1.0, "I0 (escala)", "", False, 0.8, 1.2),
+            ],
+        )
+
+    def intensity(self, t, p, acc=Accuracy(), info=None):
+        t = np.asarray(t, float)
+        m, v = float(p["m"]), float(p["v"])
+        tc = p["w0"] ** 2 / (4 * p["d"])
+        with np.errstate(divide="ignore"):
+            den = ((1 + 2 * m) ** 2 + v * v) * tc / (2 * np.maximum(t, 0.0)) + 1 + 2 * m + v * v
+        arg = np.where(t > 0, 2 * m * v / den, 0.0)
+        out = (1 - 0.5 * p["th"] * np.arctan(arg)) ** 2
+        if info is not None:
+            info.update(n_alpha=0, n_g=0, max_phase=float(abs(p["th"])))
+        return out * p.get("scale", 1.0)
+
+
+MODELS = {m.key: m for m in (TLLAM(), TMHAMTL(), TMLAM(), TMFinito(), TMBAM(), TLShen())}

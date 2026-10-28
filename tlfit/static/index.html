@@ -812,7 +812,7 @@ async function startSeries(){
 }
 function fillParSelector(){
   const free = (S.ser.free || []).map(f=>f.name), cur = $("spar").value, opts = [];
-  const lin = new Set(S.model.linear || []);
+  const lin = new Set(S.model.proportional || S.model.linear || []);
   for (const n of free){
     opts.push(`<option value="${n}">${labelOf(n)}</option>`);
     if (lin.has(n)) opts.push(`<option value="${n}/x">${labelOf(n)} / ${xName()}</option>`);
@@ -935,7 +935,7 @@ function seriesBase(){
   return (p.replace(/[_\-\s]+$/,"") || "serie");
 }
 function exportSeriesCSV(){
-  const free = (S.ser.free||[]).map(f=>f.name), lin = new Set(S.model.linear || []);
+  const free = (S.ser.free||[]).map(f=>f.name), lin = new Set(S.model.proportional || S.model.linear || []);
   const head = ["arquivo", shortX()];
   for (const n of free){ head.push(n, "sigma_"+n); if (lin.has(n)) head.push(n+"/x"); }
   head.push("chi2","R2","no_limite");
@@ -1028,7 +1028,13 @@ setInterval(() => fetch("/api/ping").catch(()=>{}), 5000);  /* o aplicativo ence
   S.model = S.models[0]; renderModel();
   const ex = await api("/api/examples");
   $("examples").innerHTML = ex.map(n=>`<button class="btn" style="padding:2px 8px;font-size:12.5px" data-ex="${n}">${n.replace(/\.dat$/,"").replace(/_/g," ")}</button>`).join(" ");
-  for (const b of $("examples").querySelectorAll("button")) b.onclick = async () => { const r = await api("/api/example/"+b.dataset.ex); loadText(r.name, r.text); };
+  for (const b of $("examples").querySelectorAll("button")) b.onclick = async () => {
+    const r = await api("/api/example/"+b.dataset.ex);
+    if (r.model && r.model !== S.model.key){ $("model").value = r.model; S.model = S.models.find(m=>m.key===r.model); renderModel(); }
+    if (r.preset && (S.model.presets||{})[r.preset]) applyPreset(r.preset);
+    for (const [n,v] of Object.entries(r.params||{})) setValue(n, v);
+    await loadText(r.name, r.text);
+  };
   const sex = await api("/api/series-examples");
   $("sexamples").innerHTML = sex.map((d,k)=>`<button class="btn" style="padding:2px 8px;font-size:12.5px" data-k="${k}">${d.name.replace(/^serie_/,"").replace(/_/g," ")}</button>`).join(" ");
   const exLabel = d => "Exemplo: série sintética " + d.name.replace(/^serie_/,"").replace(/_/g," ");

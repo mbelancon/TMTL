@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 import threading
 import time
 import traceback
@@ -153,6 +154,7 @@ def _model_info():
     for m in MODELS.values():
         out.append(dict(key=m.key, title=m.title, description=m.description, presets=m.presets,
                         linear=list(m.linear),
+                        proportional=sorted(set(m.linear) | set(getattr(m, "proportional", ()))),
                         params=[dict(name=p.name, label=p.label, unit=p.unit, value=p.value,
                                      fit=p.fit, lo=p.lo, hi=p.hi) for p in m.params]))
     return out
@@ -193,7 +195,17 @@ class Handler(BaseHTTPRequestHandler):
             name = Path(path.rsplit("/", 1)[-1]).name
             f = Path(__file__).parent / "examples" / name
             if f.is_file():
-                return self._send(200, dict(name=name, text=f.read_text()))
+                text = f.read_text(encoding="utf-8")
+                # linha opcional "# tlfit: modelo=<chave> m=… w0=…": escolhe o modelo e a geometria
+                hdr = re.search(r"^#\s*tlfit:\s*modelo=(\w+)(.*)$", text, re.M)
+                extra = {}
+                if hdr and hdr.group(1) in MODELS:
+                    extra = dict(model=hdr.group(1), params={
+                        k: float(v) for k, v in re.findall(r"(\w+)=([-+0-9.eE]+)(?:\s|$)", hdr.group(2))})
+                    pr = re.search(r"preset=(\S+)", hdr.group(2))
+                    if pr:
+                        extra["preset"] = pr.group(1)
+                return self._send(200, dict(name=name, text=text, **extra))
             return self._send(404, {"error": "exemplo não encontrado"})
         if path == "/api/ping":
             LAST_PING[0] = time.time()

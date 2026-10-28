@@ -229,6 +229,8 @@ def split_free(prob: FitProblem):
 
 
 def two_level_applicable(prob: FitProblem, max_nonlinear=2):
+    if not getattr(prob.model, "phase_based", True):
+        return False
     _, nl = split_free(prob)
     return len(nl) <= max_nonlinear
 
@@ -330,13 +332,19 @@ def inner_fit(prob: FitProblem, z_nl, lin, nl, acc, seed, stop=None):
     else:
         # vários pontos de partida para os θ (a fase é periódica neles: há mínimos
         # locais); a escala I0 é bem comportada e parte sempre do valor atual
+        # Os pontos de partida são escolhidos pela fase que produzem (±1, ±4 e ±15 rad
+        # no máximo), e não uniformes nos limites: com limites largos (θ_TM em 1/m),
+        # partidas uniformes caíam em fases de milhares de rad, sem sentido físico e
+        # caríssimas de integrar.
         rng = np.random.default_rng(seed)
         n_starts = min(5, 1 + 2 * len(pos_phase))
+        unit = pc.unit_phase()
         starts = [x0]
         for _ in range(n_starts - 1):
             xs = x0.copy()
-            for k in pos_phase:
-                xs[k] = lo[k] + (hi[k] - lo[k]) * rng.random()
+            for j, k in enumerate(pos_phase):
+                mag = rng.choice([1.0, 4.0, 15.0]) / max(unit[j], 1e-300)
+                xs[k] = np.clip(rng.choice([-1.0, 1.0]) * mag, lo[k], hi[k])
             starts.append(xs)
         chi, x_best = np.inf, x0
         for xs in starts:
