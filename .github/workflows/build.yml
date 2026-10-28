@@ -1,0 +1,48 @@
+# Gera a versão portátil para Windows (Python embutido + numpy + scipy + programa).
+# - Em todo push/PR: o zip fica em "Actions" → execução → "Artifacts".
+# - Ao criar uma tag v* (ex.: git tag v2.0.0 && git push --tags): publica uma Release
+#   com o zip, que os colaboradores baixam sem precisar instalar Python.
+name: build
+
+on:
+  push:
+    branches: [main, master]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  portatil-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validação do motor (código-fonte)
+        run: |
+          python -m pip install numpy scipy
+          python tests/validate.py
+      - name: Montar e testar a versão portátil
+        shell: pwsh
+        run: ./ferramentas/montar_portatil.ps1 -Saida "$env:RUNNER_TEMP\portatil" -Python (Get-Command python).Source
+      - name: Teste rápido do lançador
+        shell: pwsh
+        run: |
+          $dir = "$env:RUNNER_TEMP\portatil\TMTL2"
+          $p = Start-Process "$dir\python\python.exe" -ArgumentList "app.py","--browser" -WorkingDirectory $dir -PassThru
+          Start-Sleep 10
+          if ($p.HasExited) { Write-Error "O programa fechou logo ao iniciar (código $($p.ExitCode))"; exit 1 }
+          Stop-Process $p
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TMTL2-portatil-windows
+          path: ${{ runner.temp }}/portatil/*.zip
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ runner.temp }}/portatil/*.zip
