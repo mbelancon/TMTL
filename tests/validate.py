@@ -435,8 +435,8 @@ for _nome, _mat in _ART_MAT.items():
     _q.update(d=_Ds, th=_th, m=_p["m"], w0=_p["w0"], v=_p["v"], beta=_aT, nu=_nu, dndt=_ART["dndT"],
               df=_ART["Df"], of=_XI, scale=1.0)
     _e_ham = np.abs(mhm.intensity(_t_off, _q) - _I_off).max() / np.abs(_I_off - 1).max()
-    print(f"artigo Flizikowski 2020, {_nome:6s}: TM + fluido ligado {_e_on:.1e}, desligado {_e_off:.1e}"
-          f"   (TM-HAM on/off, sem troca de calor com o ar: {_e_ham:.1e}; relativo ao sinal)")
+    print(f"artigo Flizikowski 2020, {_nome:6s}: TM+TM-Fluid ligado {_e_on:.1e}, desligado {_e_off:.1e}"
+          f"   (TM+TM-Fluid HAM on/off, aproximação sem retorno do fluido: {_e_ham:.1e}; relativo ao sinal)")
     ok &= _e_on < 1e-4 and _e_off < 1e-4
 
 print("OK" if ok else "FALHOU")

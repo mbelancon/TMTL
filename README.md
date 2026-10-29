@@ -18,37 +18,51 @@ e uma forma de integrar o modelo várias centenas de vezes mais rápida que a ve
 | Avaliação de um transiente | Original (C com GSL, 2 núcleos) | TMTL2 (Python/NumPy) |
 |---|---|---|
 | TLLAM, 86 pontos | 4,9 s | 0,02–0,05 s |
-| TM-HAM on/off, 123 pontos, dn/dT ar = 0 | 81 s* | 0,2 s |
-| TM-HAM on/off com lente no ar (dn/dT ≠ 0) | > 20 min (60 pontos, não terminou) | 0,5 s |
+| TM+TM-Fluid, HAM on/off (aproximação), 123 pontos, dn/dT ar = 0 | 81 s* | 0,2 s |
+| TM+TM-Fluid, HAM on/off (aproximação) com lente no ar (dn/dT ≠ 0) | > 20 min (60 pontos, não terminou) | 0,5 s |
 
 \* depois de corrigir o vazamento de memória; sem a correção o processo é morto por falta de memória.
 
 ## Modelos
 
+Nomes: **TM** é o espelho térmico (*thermal mirror*) e **TL** a lente térmica (*thermal lens*).
+Quando o modelo soma a TL ou o TM de um sólido à lente térmica do fluido em contato (ar, água), o
+nome leva "+…-Fluid": **TL+TL-Fluid** e **TM+TM-Fluid**.
+
 | Modelo | Uso | Referência |
 |---|---|---|
-| **TLLAM** — TL amostra + fluido | lente térmica com acoplamento térmico amostra–fluido e espessura qualquer (modelo unificado) | Malacarne et al., *Appl. Spectrosc.* **65**, 99 (2011) |
-| **TM-HAM on/off + TL no ar** | espelho térmico em amostra opaca, com desligamento e lente no ar | Sato et al., *J. Appl. Phys.* **104**, 053520 (2008); Flizikowski et al., *Opt. Express* **28**, 7116 (2020) |
-| **TM-LAM** | espelho térmico, baixa absorção (fonte uniforme em z), amostra semi-infinita | Sato et al. (2008), eq. 32 |
-| **TM-LAM, amostra finita** | espelho térmico de baixa absorção em amostra de espessura *l* (faces livres) | Astrath et al., *J. Opt. Soc. Am. B* **28**, 1735 (2011), eq. 10 |
-| **TM-BAM** (lei de Beer) | espelho térmico para qualquer A_e; tende ao LAM e ao HAM | Sato et al. (2008), eq. 33–34 |
-| **TL de Shen** | expressão fechada clássica da lente térmica no modo descasado | Baesso, Shen & Snook, *J. Appl. Phys.* **75**, 3732 (1994), eq. 10 |
+| **TL+TL-Fluid (TLLAM)** | lente térmica da amostra mais a do fluido, com acoplamento térmico amostra–fluido e espessura qualquer (modelo unificado) | Malacarne et al., *Appl. Spectrosc.* **65**, 99 (2011) |
+| **TL de Shen (clássico)** | expressão fechada clássica da lente térmica no modo descasado | Baesso, Shen & Snook, *J. Appl. Phys.* **75**, 3732 (1994), eq. 10 |
 | **TL com fotobranqueamento** | lente térmica de líquido cuja absorção decai por reação fotoquímica (taxa K_T) até ε̄·β; ajusta θ, K_T e ε̄ | Herculano et al., *J. Phys. Chem. B* **117**, 1932 (2013), eqs. 3–6 |
-| **TM + fluido** | espelho térmico com a lente térmica do fluido em contato (ar, água); acoplamento de calor amostra–fluido por transformada de Laplace (tabelas de Talbot); ajusta D, θ e θ_f | Lukasievicz et al., *Appl. Spectrosc.* **66**, 1461 (2012); Flizikowski et al., *Opt. Express* **28**, 7116 (2020), eqs. 3–10 |
 | **TL + lente de população** | lente térmica mais lente do estado excitado (população saturável, vida τ); ajusta θ_th, θ_PL, τ e D | Silva et al., *Appl. Phys. Lett.* **102**, 141910 (2013), eqs. 1–3 |
+| **TM LAM** | espelho térmico, baixa absorção (fonte uniforme em z), amostra semi-infinita | Sato et al. (2008), eq. 32 |
+| **TM LAM, amostra finita** | espelho térmico de baixa absorção em amostra de espessura *l* (faces livres) | Astrath et al., *J. Opt. Soc. Am. B* **28**, 1735 (2011), eq. 10 |
+| **TM BAM** (lei de Beer) | espelho térmico para qualquer A_e; tende ao LAM e ao HAM | Sato et al. (2008), eq. 33–34 |
+| **TM+TM-Fluid, HAM on/off (aproximação: sem retorno do fluido)** | espelho térmico em amostra opaca, com desligamento, mais a lente térmica do fluido (ar); a superfície da amostra é livre, como no `tmhamtl-onoff.c` | Sato et al., *J. Appl. Phys.* **104**, 053520 (2008); Flizikowski et al., *Opt. Express* **28**, 7116 (2020) |
+| **TM+TM-Fluid, HAM (acoplamento completo)** | espelho térmico com a lente térmica do fluido em contato (ar, água); acoplamento de calor amostra–fluido por transformada de Laplace (tabelas de Talbot); ajusta D, θ e θ_f | Lukasievicz et al., *Appl. Spectrosc.* **66**, 1461 (2012); Flizikowski et al., *Opt. Express* **28**, 7116 (2020), eqs. 3–10 |
+
+**Qual TM+TM-Fluid usar.** Os dois incluem o calor que passa da amostra para o fluido e a lente
+térmica que ele forma. A diferença é o retorno: no **HAM on/off (aproximação)**, equivalente ao
+`tmhamtl-onoff.c`, a superfície da amostra é livre, e o fluido recebe calor mas não esfria a amostra de
+volta; no **HAM (acoplamento completo)** (eqs. 3–10 de Flizikowski et al., 2020) o fluido também
+esfria a amostra. Sem esse retorno os dois coincidem a 10⁻¹¹. Nos três metais do artigo (cobre, bronze
+e inox, em ar) a aproximação difere do modelo completo de 10⁻⁴ a 10⁻³ do sinal com o laser ligado e de
+10⁻³ a 10⁻² logo após desligar (1,3 % no inox). Para ajustar dados do artigo, ou quando a precisão
+logo após o desligamento importa, use o acoplamento completo; para comparar com o programa original,
+a aproximação.
 
 **Cada modelo tem o seu θ.** A interface mostra a definição e a unidade do θ do modelo
 escolhido logo abaixo da descrição, e o relatório e a série repetem essa definição:
 
 | Modelo | θ ajustado | Unidade |
 |---|---|---|
-| TLLAM | θ amostra = ϑ·10⁻⁶, ϑ = P_e A_e φ/(k_s λ_p) (a fase é ϑ·l·χ(α,l)) | 10⁶ K/m |
-| TLLAM | θ fluido = 2 P_e A_e φ (∂n_f/∂T)/λ_p | W/(K·m²) |
-| TM-HAM | θ_HAM = θ_TM/A_e = −P_e α_T (1+ν) φ/(λ_p k) | adimensional |
-| TM-LAM, TM finito, TM-BAM | θ_TM = −P_e A_e α_T (1+ν) φ/(λ_p k) | 1/m |
-| Shen | θ = −P_e A_e L φ (ds/dT)/(k λ_p) | rad |
+| TL+TL-Fluid (TLLAM) | θ amostra = ϑ·10⁻⁶, ϑ = P_e A_e φ/(k_s λ_p) (a fase é ϑ·l·χ(α,l)) | 10⁶ K/m |
+| TL+TL-Fluid (TLLAM) | θ fluido = 2 P_e A_e φ (∂n_f/∂T)/λ_p | W/(K·m²) |
+| TM+TM-Fluid, HAM on/off (aproximação) | θ_HAM = θ_TM/A_e = −P_e α_T (1+ν) φ/(λ_p k) | adimensional |
+| TM LAM, TM LAM finito, TM BAM | θ_TM = −P_e A_e α_T (1+ν) φ/(λ_p k) | 1/m |
+| TL de Shen | θ = −P_e A_e L φ (ds/dT)/(k λ_p) | rad |
 | TL com fotobranqueamento | θ = −P_e β L φ (dn/dT)/(k λ_p), β = absorção inicial (o patamar final vale ε̄·θ) | rad |
-| TM + fluido | θ = θ_HAM da amostra (adimensional); θ_f = 2 P_e φ (dn/dT)_f/λ_p, em W/(K·m) | — |
+| TM+TM-Fluid, HAM (acoplamento completo) | θ = θ_HAM da amostra (adimensional); θ_f = 2 P_e φ (dn/dT)_f/λ_p, em W/(K·m) | — |
 | TL + lente de população | θ_th = −P_abs (ds/dT) φ/(k λ_p), P_abs = P A_e L; θ_PL = I0 σ_abs N_T Δα_P (2π f_L)²/(n λ_p E) | rad; 1/(m·s) |
 
 Os modelos de espelho térmico aceitam desligamento da excitação em `t_off` (0 = sem desligar). A convenção de sinal da fase é a mesma
@@ -266,8 +280,8 @@ da fórmula (erf e Dawson):
 
 Para os modelos de espelho térmico novos e o de Shen, o teste confere:
 
-    TM-BAM   Ĝ(α,t) contra quadratura em τ: erro relativo máx 3.4e-08
-    TM-LAM   fase contra a eq. 32 de Sato et al. (2008): erro relativo máx 2.4e-15
+    TM BAM   Ĝ(α,t) contra quadratura em τ: erro relativo máx 3.4e-08
+    TM LAM   fase contra a eq. 32 de Sato et al. (2008): erro relativo máx 2.4e-15
     limites  BAM→HAM 1.7e-09   BAM→LAM 2.1e-08   finito→LAM 1.3e-10 (relativo ao sinal)
     TL Shen  contra a integral de difração (θ = 0,01): diferença 1.1e-03 do sinal (ordem θ)
     TL branq fase contra a eq. 4 de Herculano et al. (2013): erro relativo máx 8.1e-12
@@ -282,13 +296,13 @@ Para os modelos de espelho térmico novos e o de Shen, o teste confere:
     TL população: Φ_PL fechada contra quadratura em z: erro relativo máx 4.2e-15
     θ_PL = 0 contra TL de Shen: diferença máx 7.8e-07
     ajuste   tlpop     d = 2.5992e-07 (-0.1σ)  th = 0.14999 (-0.1σ)  tpl = -12071 (-0.5σ)  tau = 0.0016903 (-0.4σ)
-    artigo Flizikowski 2020, cobre : TM + fluido ligado 2.4e-05, desligado 2.4e-05
-    artigo Flizikowski 2020, bronze: TM + fluido ligado 3.5e-06, desligado 5.2e-06
-    artigo Flizikowski 2020, inox  : TM + fluido ligado 1.5e-06, desligado 1.3e-06 (relativo ao sinal)
+    artigo Flizikowski 2020, cobre : TM+TM-Fluid ligado 2.4e-05, desligado 2.4e-05
+    artigo Flizikowski 2020, bronze: TM+TM-Fluid ligado 3.5e-06, desligado 5.2e-06
+    artigo Flizikowski 2020, inox  : TM+TM-Fluid ligado 1.5e-06, desligado 1.3e-06 (relativo ao sinal)
 
 As eqs. 3–10 de Flizikowski et al. (2020) (G da eq. 4, u_z da eq. 6, lente no ar da eq. 8, sinal da
 eq. 10) foram implementadas à parte, com os parâmetros da Tabela 1 e da fig. 1 do artigo, e o
-TM + fluido as reproduz. O desligamento é a superposição T_on(t) − T_on(t − ξ). O `tmhamtl`
+TM+TM-Fluid (acoplamento completo) as reproduz. O desligamento é a superposição T_on(t) − T_on(t − ξ). O `tmhamtl`
 (superfície livre, como no `tmhamtl-onoff.c`) difere do artigo por 9e-4 (cobre), 4e-3 (bronze) e
 1,3e-2 (inox) do sinal no regime desligado, porque o artigo inclui a troca de calor amostra–ar; sem
 essa troca (κ → 0) os dois modelos coincidem a 1e-11. A diferença cresce com k_ar/k_amostra.
@@ -333,7 +347,7 @@ print(res["params"]["d"], res["sigma"]["d"])
     montar_portatil.bat monta a versão portátil (ferramentas/montar_portatil.ps1)
     .github/workflows/  build automático da versão portátil e Releases
     legado/             código original (C com GSL), notebook e README da versão 1
-    tlfit/models.py     modelos (TLLAM, TM-HAM, TM-LAM, TM finito, TM-BAM, Shen, fotobranqueamento, TM + fluido, TL + população)
+    tlfit/models.py     modelos (TL+TL-Fluid, TL de Shen, TL com fotobranqueamento, TL + população, TM LAM, TM LAM finito, TM BAM, TM+TM-Fluid HAM on/off e acoplamento completo)
     tlfit/optim.py      ajuste em dois níveis, PSO, Levenberg–Marquardt, incertezas
     tlfit/batch.py      ajuste de séries e estatística (θ/P, médias, tendências)
     tlfit/server.py     servidor local (biblioteca padrão) para a interface
@@ -349,7 +363,7 @@ print(res["params"]["d"], res["sigma"]["d"])
   interferometry", *Opt. Express* **28**, 7116 (2020), doi:10.1364/OE.386344. Espelho térmico
   com excitação ligada/desligada e lente térmica no ar, com acoplamento de calor
   amostra–fluido (eqs. 3–10), em cobre, bronze e inox. Reproduzido em `tests/validate.py`
-  (ver Validação). Os valores padrão de *m* e *w₀* do TM-HAM on/off coincidem com a geometria
+  (ver Validação). Os valores padrão de *m* e *w₀* do TM+TM-Fluid, HAM on/off coincidem com a geometria
   do artigo (w_e = 646 µm, w_p = 1584 µm).
 * L. C. Malacarne et al., *Appl. Spectrosc.* **65**, 99 (2011), doi:10.1366/10-06096
   (modelo TLLAM).
