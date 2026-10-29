@@ -481,97 +481,208 @@ class TLLAM(Model):
 
 
 # ---------------------------------------------------------------------------
-# TM+TM-Fluid, HAM on/off (aproximação, sem retorno do fluido) — equivalente a tmhamtl-onoff.c
+# Lente térmica de Shen (forma fechada, modo descasado)
+#   Shen, Lowe & Snook, Chem. Phys. 165, 385 (1992); Baesso et al., JAP 75, 3732 (1994)
+#   I(t) = I(0) [1 − (θ/2) atan(2mV / ([(1+2m)² + V²] t_c/(2t) + 1 + 2m + V²))]²
 # ---------------------------------------------------------------------------
 
 
-class TMHAMTL(Model):
+class TLShen(Model):
     theta_info = {
-        "th": {"def": "θ_HAM = θ_TM / A_e = −P_e α_T (1+ν) φ / (λ_p k)", "unit": "adimensional",
-               "note": "Não contém A_e (amostra opaca). Para comparar com LAM, BAM e amostra finita, "
-                       "que dão θ_TM em 1/m: θ_TM = θ_HAM·A_e. Amostra que dilata (α_T > 0): θ < 0. "
-                       "Com P_e incidente e refletividade R, o θ_TM de Flizikowski et al. (2020) é (1−R)·θ_HAM."},
+        "th": {"def": "θ = −P_e A_e L φ (ds/dT) / (k λ_p)", "unit": "rad",
+               "note": "θ da lente térmica clássica: inclui a espessura L. Não confundir com o θ_TM do "
+                       "espelho térmico (1/m) nem com o θ amostra do TLLAM. ds/dT > 0: θ < 0 e o sinal sobe."},
     }
-    linear = ("th",)     # a lente no ar também é proporcional a θ (pref ∝ th)
+    linear = ()
+    phase_based = False     # sem fase integral: o ajuste usa PSO + LM direto
+    proportional = ("th",)  # na série, θ ∝ P (inclinação θ/P)
 
     def __init__(self):
         super().__init__(
-            key="tmhamtl",
-            title="TM+TM-Fluid, HAM on/off (aproximação: sem retorno do fluido)",
-            description="Espelho térmico (alta absorção) com excitação desligada em "
-                        "t = t_off, mais a lente térmica do fluido (ar), ativa se dn/dT ≠ 0. "
-                        "Equivalente a tmhamtl-onoff.c: aproximação em que a superfície da amostra é "
-                        "livre; o fluido recebe calor e forma a TL, mas não esfria a amostra de volta. "
-                        "Para o acoplamento completo (Flizikowski et al., Opt. Express 28, 7116, 2020) "
-                        "use TM+TM-Fluid, HAM (acoplamento completo): nos três metais do artigo a "
-                        "diferença é de 1e-4 a 1e-3 do sinal com o laser ligado e chega a ~1% logo "
-                        "após desligar (inox em ar).",
+            key="tlshen",
+            title="TL de Shen (clássico)",
+            description="Expressão fechada do modelo aberrante de Shen para lente "
+                        "térmica no modo descasado (amostra fina, baixa absorção, θ "
+                        "pequeno). t_c = w0e²/(4D). Baesso, Shen & Snook, J. Appl. Phys. "
+                        "75, 3732 (1994), eq. 10.",
             params=[
-                Param("d", 3.46e-6, "D amostra", "m²/s", True, 1e-8, 1e-4),
-                Param("th", -0.57, "θ HAM", "adim.", True, -5, 5),
-                Param("m", 6.01, "m", ""),
-                Param("w0", 646e-6, "w0e", "m"),
-                Param("v", 52.6, "V", ""),
-                Param("beta", 1.73e-5, "β expansão", "1/K"),
-                Param("nu", 0.29, "ν Poisson", ""),
-                Param("dndt", 0.0, "dn/dT ar", "1/K"),
-                Param("df", 2.2e-5, "D ar", "m²/s"),
-                Param("of", 0.899, "t_off", "s"),
+                Param("d", 1.4e-7, "D amostra", "m²/s", True, 1e-9, 1e-4),
+                Param("th", -0.1, "θ", "rad", True, -3, 3),
+                Param("m", 30.0, "m", ""),
+                Param("w0", 50e-6, "w0e", "m"),
+                Param("v", 2.0, "V", ""),
+                Param("scale", 1.0, "I0 (escala)", "", False, 0.8, 1.2),
+            ],
+        )
+
+    def intensity(self, t, p, acc=Accuracy(), info=None):
+        t = np.asarray(t, float)
+        m, v = float(p["m"]), float(p["v"])
+        tc = p["w0"] ** 2 / (4 * p["d"])
+        with np.errstate(divide="ignore"):
+            den = ((1 + 2 * m) ** 2 + v * v) * tc / (2 * np.maximum(t, 0.0)) + 1 + 2 * m + v * v
+        arg = np.where(t > 0, 2 * m * v / den, 0.0)
+        out = (1 - 0.5 * p["th"] * np.arctan(arg)) ** 2
+        if info is not None:
+            info.update(n_alpha=0, n_g=0, max_phase=float(abs(p["th"])))
+        return out * p.get("scale", 1.0)
+
+
+# ---------------------------------------------------------------------------
+# Lente térmica com fotobranqueamento — Herculano et al., J. Phys. Chem. B 117, 1932 (2013)
+#   β(t) = β [(1−ε̄) e^{−K_T t} + ε̄]  (absorção que decai de β a ε̄·β com taxa K_T)
+#   Φ(g,t) = θ/t_c ∫₀ᵗ [ε̄ + (1−ε̄) e^{−K_T (t−ξ)}] (1+2ξ/t_c)⁻¹ [1 − e^{−2mg/(1+2ξ/t_c)}] dξ
+# Em espaço de Hankel o mesmo resultado é  Φ = ∫ K(α,t)[J0(α w0 √(m g)) − 1] dα  com
+#   K = −θ e^{−α²w²/8} F(α,t)/α,
+#   F = ε̄ (1 − e^{−bt}) + (1−ε̄) b (e^{−bt} − e^{−K_T t})/(K_T − b),   b = D α²
+# (convolução de β(t) com a resposta térmica; K_T → 0 ou ε̄ = 1 dão a TL clássica de Shen).
+# ---------------------------------------------------------------------------
+
+
+def _phi1(z):
+    """(1 − e^{−z})/z, estável em z → 0."""
+    z = np.abs(z)
+    small = z < 1e-8
+    zs = np.where(small, 1.0, z)
+    return np.where(small, 1.0 - 0.5 * z, -np.expm1(-zs) / zs)
+
+
+class TLFotobranq(Model):
+    theta_info = {
+        "th": {"def": "θ = −P_e β L φ (dn/dT) / (k λ_p),  β = absorção em t = 0 (antes de branquear)",
+               "unit": "rad",
+               "note": "Mesmo θ da TL de Shen, mas com o β inicial: o sinal em t longo corresponde a ε̄·θ. "
+                       "dn/dT < 0 (água): θ > 0 e o sinal cai. Na série, θ ∝ P_e. "
+                       "K_T [1/s] = K_m + K_pb P_e (K_m: difusão de massa; K_pb: fotobranqueamento) "
+                       "e ε̄ = ε_produtos/ε_reagentes — a reta de K_T × P_e aparece na série."},
+    }
+    linear = ("th",)
+
+    def __init__(self):
+        super().__init__(
+            key="tlbranq",
+            title="TL com fotobranqueamento (Herculano 2013)",
+            description="Lente térmica de líquido com absorção que decai por reação fotoquímica "
+                        "(pseudo-primeira ordem, taxa K_T) até ε̄·β. Ajusta θ, K_T e ε̄; fixe D com uma "
+                        "medida do solvente puro (K_T = 0). Herculano et al., J. Phys. Chem. B 117, "
+                        "1932 (2013), eqs. 3–6.",
+            params=[
+                Param("d", 1.41e-7, "D amostra", "m²/s", False, 1e-9, 1e-4),
+                Param("th", 0.05, "θ", "rad", True, -5, 5),
+                Param("kt", 2.0, "K_T", "1/s", True, 1e-4, 1e3),
+                Param("eb", 0.3, "ε̄", "", True, 0, 5),
+                Param("m", 35.1, "m", ""),
+                Param("w0", 70e-6, "w0e", "m"),
+                Param("v", 7.5, "V", ""),
                 Param("scale", 1.0, "I0 (escala)", "", False, 0.8, 1.2),
             ],
         )
 
     def kernel(self, t, a, p, acc):
-        d, th, w0, of = p["d"], p["th"], p["w0"], p["of"]
-        u2 = (a * w0) ** 2
-        gauss = np.exp(-u2 / 8)
-        a2 = a * a
-        tt = np.broadcast_to(t, np.broadcast_shapes(t.shape, a.shape))
-        on = tt <= of
-        # argfasetm (t <= of)
-        st = np.sqrt(d * t)
-        k_on = 2 * th * gauss * (-2 * np.sqrt(d * t / np.pi) * np.exp(-d * t * a2)
-                                 + erf(st * a) / a + erfc(st * a) * 2 * d * t * a)
-        K = np.where(on, k_on, 0.0)
-        if np.any(~on):
-            to = np.maximum(t - of, 0.0)
-            sto = np.sqrt(d * to)
-            k_off = (2 * np.sqrt(d * to / np.pi) * np.exp(-a2 * (d * to + w0 * w0 / 8))
-                     - 2 * np.sqrt(d * t / np.pi) * np.exp(-a2 * (d * t + w0 * w0 / 8))
-                     + gauss / a * ((2 * d * t * a2 - 1) * erfc(st * a)
-                                    - (2 * d * to * a2 - 1) * erfc(sto * a)))
-            K = np.where(on, K, 2 * th * k_off)
-        if p["dndt"] != 0:
-            K = K + self._air(t, a, p, gauss, acc.tau_nodes)
-        return K
+        b = p["d"] * a * a
+        k, eb = p["kt"], p["eb"]
+        bt = b * t
+        # (e^{−bt} − e^{−kt})/(k − b) = t e^{−min(k,b)t} (1 − e^{−z})/z, z = |k − b| t
+        mix = t * np.exp(-np.minimum(k, b) * t) * _phi1((k - b) * t)
+        F = eb * (-np.expm1(-bt)) + (1 - eb) * b * mix
+        return -p["th"] * np.exp(-(a * p["w0"]) ** 2 / 8) * F / a
 
-    @staticmethod
-    def _air(t, a, p, gauss, n_tau=80, block=16):
-        """argfasear/argtau: integral em τ feita com τ = t sin²φ e tanh-sinh.
 
-        Vetorizada em (tempo × α × φ), em blocos de `block` tempos para limitar
-        a memória (~block·Nα·Nφ números por bloco)."""
-        d, df, of = p["d"], p["df"], p["of"]
-        pref = -p["th"] * 2 * p["dndt"] / (p["beta"] * (1 + p["nu"])) * np.sqrt(df / np.pi)
-        x, w = tanh_sinh(n_tau)
-        tv = t[:, 0]
-        av2 = (a[0] ** 2)[None, :, None]                      # (1, Nα, 1)
-        av = a[0][None, :, None]
-        J = np.empty((tv.size, a.shape[1]))
-        for i0 in range(0, tv.size, block):
-            ti = tv[i0:i0 + block]
-            lo = np.where(ti <= of, 0.0, np.arcsin(np.sqrt(np.clip((ti - of) / ti, 0, 1))))
-            span = 0.5 * np.pi - lo
-            phi = lo[:, None] + span[:, None] * x[None, :]   # (nb, Nφ)
-            wp = span[:, None] * w[None, :]
-            s2 = np.sin(phi) ** 2
-            c = np.cos(phi)
-            tt = ti[:, None, None]
-            # 2 sqrt(t) ∫ cosφ e^{-α² df t sin²φ} erf(α sqrt(d t) cosφ) dφ
-            f = c[:, None, :] * np.exp(-av2 * df * tt * s2[:, None, :]) * \
-                erf(av * np.sqrt(d * tt) * c[:, None, :])
-            J[i0:i0 + block] = 2 * np.sqrt(ti)[:, None] * np.einsum("tap,tp->ta", f, wp)
-        return pref * gauss * J
+# ---------------------------------------------------------------------------
+# Lente térmica + lente de população — Silva et al., Appl. Phys. Lett. 102, 141910 (2013)
+#   Φ = Φ_th + Φ_PL
+#   Φ_th = θ_th ∫₀ᵗ dξ/(t_c + 2ξ) [1 − e^{−2mg/(1+2ξ/t_c)}]            (= TL de Shen)
+#   Φ_PL = θ_PL ∫₀ˡ  u/(1/τ + h u) [1 − e^{−t(1/τ + h u)}] dz,   u = e^{−2mg} e^{−A_e z}
+# (população do estado excitado por equação de taxa de dois níveis, saturável; h é a taxa de
+# excitação no centro, h = I0 (σ_abs + σ_se)/E). Com u = e^{−2mg − A_e z} a integral em z fica
+#   Φ_PL = θ_PL /(A_e h) ∫_{s_L}^{s_0} (1 − e^{−t s})/s ds,  s = 1/τ + h u,
+#   ∫ = ln(s0/sL) − [E1(t sL) − E1(t s0)]   (série em t s para t s0 ≤ 1; quadratura em z se A_e l < 0,02).
+# Como no artigo, a fase é Φ_PL(g) − Φ_PL(0) (uma fase constante não altera a intensidade).
+# ---------------------------------------------------------------------------
+
+from scipy.special import exp1 as _exp1
+
+_GL8 = np.polynomial.legendre.leggauss(8)
+
+
+def _pl_unit_phase(t, u0, ae, l, h, tau):
+    """Φ_PL para θ_PL = 1; t (Nt,1), u0 = e^{−2mg} (1,Ng) ou (Ng,)."""
+    t = np.asarray(t, float)
+    u0 = np.asarray(u0, float)[None, :] if np.ndim(u0) == 1 else u0
+    k = 1.0 / tau
+    if ae * l < 0.02:
+        x, w = _GL8
+        out = 0.0
+        for xi, wi in zip(x, w):
+            z = 0.5 * l * (xi + 1)
+            u = u0 * np.exp(-ae * z)
+            sk = k + h * u
+            out = out + 0.5 * l * wi * u / sk * (-np.expm1(-t * sk))
+        return out
+    s0 = k + h * u0
+    sL = k + h * u0 * np.exp(-ae * l)
+    x0 = t * s0
+    small = x0 <= 1.0
+    # série: Σ (−1)^{j+1} t^j (s0^j − sL^j)/(j·j!)
+    a0, aL = np.where(small, x0, 0.0), np.where(small, t * sL, 0.0)
+    ser = 0.0
+    fact = 1.0
+    for j in range(1, 15):
+        fact *= j
+        ser = ser + (-1) ** (j + 1) * (a0 ** j - aL ** j) / (j * fact)
+    xL = np.where(small, 1.0, t * sL)
+    xb = np.where(small, 1.0, x0)
+    closed = np.log(s0 / sL) - (_exp1(xL) - _exp1(xb))
+    return np.where(small, ser, closed) / (ae * h)
+
+
+class TLPopulacao(Model):
+    theta_info = {
+        "th": {"def": "θ_th = −P_abs (ds/dT) φ / (k λ_p),  P_abs = P A_e L,  L = (1 − e^{−A_e l})/A_e",
+               "unit": "rad",
+               "note": "Mesmo θ do Shen. ds/dT < 0 (ZBLAN) com aquecimento: θ_th > 0; "
+                       "resfriamento a laser inverte o sinal (φ < 0)."},
+        "tpl": {"def": "θ_PL = I0 σ_abs N_T Δα_P (2π f_L)² / (n λ_p E)",
+                "unit": "1/(m·s)",
+                "note": "Força da lente de população. Δα_P: diferença de polarizabilidade eletrônica "
+                        "excitado–fundamental; f_L = (n²+2)/3; E = h c/λ_ex; I0 = 2P/(π w_e²)."},
+    }
+    linear = ("th", "tpl")
+    direct = ("tpl",)
+
+    def __init__(self):
+        super().__init__(
+            key="tlpop",
+            title="TL + lente de população (Silva 2013)",
+            description="Lente térmica mais lente de população do estado excitado (vida τ, taxa de "
+                        "excitação h = I0(σ_abs+σ_se)/E no centro, absorção A_e, espessura l). "
+                        "Silva et al., Appl. Phys. Lett. 102, 141910 (2013), eqs. 1–3. "
+                        "Ajusta θ_th, θ_PL, τ e D; m e V são da montagem, h, A_e e l são conhecidos.",
+            params=[
+                Param("d", 2.5e-7, "D amostra", "m²/s", True, 1e-9, 1e-4),
+                Param("th", 0.04, "θ_th", "rad", True, -3, 3),
+                Param("tpl", 2900.0, "θ_PL", "1/(m·s)", True, -1e7, 1e7),
+                Param("tau", 1.7e-3, "τ (vida)", "s", True, 1e-5, 1e-1),
+                Param("h", 40.0, "h (taxa de excitação)", "1/s", False, 1e-3, 1e5),
+                Param("ae", 240.0, "A_e absorção", "1/m", False, 0.0, 1e5),
+                Param("l", 3.79e-3, "l espessura", "m"),
+                Param("m", 28.7, "m", ""),
+                Param("w0", 144e-6, "w0e", "m"),
+                Param("v", 15.0, "V", ""),
+                Param("scale", 1.0, "I0 (escala)", "", False, 0.8, 1.2),
+            ],
+        )
+
+    def kernel(self, t, a, p, acc):
+        # parte térmica (Shen): K = −θ_th e^{−α²w²/8} (1 − e^{−Dα²t})/α
+        return -p["th"] * np.exp(-(a * p["w0"]) ** 2 / 8) * (-np.expm1(-p["d"] * a * a * t)) / a
+
+    def direct_phase(self, name, t, g, p):
+        g = np.asarray(g, float)
+        u0 = np.exp(-2 * p["m"] * g)
+        both = np.concatenate([[1.0], u0])          # u = 1 em g = 0 (referência do centro)
+        ph = _pl_unit_phase(t, both, p["ae"], p["l"], p["h"], p["tau"])
+        return ph[:, 1:] - ph[:, :1]
 
 
 # ---------------------------------------------------------------------------
@@ -725,7 +836,7 @@ class TMLAM(_TMBase):
             key="tmlam",
             title="TM LAM (baixa absorção)",
             description="Espelho térmico para amostra semi-infinita com fonte uniforme "
-                        "em z (A_e·espessura ≪ 1). Sato et al., J. Appl. Phys. 104, "
+                        "em z (A_e·espessura ≪ 1). LAM = Low Absorption Model. Sato et al., J. Appl. Phys. 104, "
                         "053520 (2008), eq. 32. θ_TM = −P_e A_e α_T(1+ν)φ/(λ_p k), em 1/m.",
             params=_TM_COMMON(-1e6, 1e6) + [
                 Param("of", 0.0, "t_off (0 = sem desligar)", "s"),
@@ -762,7 +873,7 @@ class TMBAM(_TMBase):
             key="tmbam",
             title="TM BAM (lei de Beer)",
             description="Espelho térmico com absorção pela lei de Beer, válido para "
-                        "qualquer A_e (amostra semi-infinita). Sato et al., J. Appl. Phys. "
+                        "qualquer A_e (amostra semi-infinita); BAM = Beer Absorption Model. Sato et al., J. Appl. Phys. "
                         "104, 053520 (2008), eq. 33–34. Tende ao LAM (A_e → 0) e ao HAM "
                         "(A_e → ∞, com θ_HAM = θ_TM/A_e).",
             params=_TM_COMMON(-1e9, 1e9) + [
@@ -778,111 +889,97 @@ class TMBAM(_TMBase):
 
 
 # ---------------------------------------------------------------------------
-# Lente térmica de Shen (forma fechada, modo descasado)
-#   Shen, Lowe & Snook, Chem. Phys. 165, 385 (1992); Baesso et al., JAP 75, 3732 (1994)
-#   I(t) = I(0) [1 − (θ/2) atan(2mV / ([(1+2m)² + V²] t_c/(2t) + 1 + 2m + V²))]²
+# TM+TL-Fluid, HAM on/off (aproximação, sem retorno do fluido) — equivalente a tmhamtl-onoff.c
 # ---------------------------------------------------------------------------
 
 
-class TLShen(Model):
+class TMHAMTL(Model):
     theta_info = {
-        "th": {"def": "θ = −P_e A_e L φ (ds/dT) / (k λ_p)", "unit": "rad",
-               "note": "θ da lente térmica clássica: inclui a espessura L. Não confundir com o θ_TM do "
-                       "espelho térmico (1/m) nem com o θ amostra do TLLAM. ds/dT > 0: θ < 0 e o sinal sobe."},
+        "th": {"def": "θ_HAM = θ_TM / A_e = −P_e α_T (1+ν) φ / (λ_p k)", "unit": "adimensional",
+               "note": "Não contém A_e (amostra opaca). Para comparar com LAM, BAM e amostra finita, "
+                       "que dão θ_TM em 1/m: θ_TM = θ_HAM·A_e. Amostra que dilata (α_T > 0): θ < 0. "
+                       "Com P_e incidente e refletividade R, o θ_TM de Flizikowski et al. (2020) é (1−R)·θ_HAM."},
     }
-    linear = ()
-    phase_based = False     # sem fase integral: o ajuste usa PSO + LM direto
-    proportional = ("th",)  # na série, θ ∝ P (inclinação θ/P)
+    linear = ("th",)     # a lente no ar também é proporcional a θ (pref ∝ th)
 
     def __init__(self):
         super().__init__(
-            key="tlshen",
-            title="TL de Shen (clássico)",
-            description="Expressão fechada do modelo aberrante de Shen para lente "
-                        "térmica no modo descasado (amostra fina, baixa absorção, θ "
-                        "pequeno). t_c = w0e²/(4D). Baesso, Shen & Snook, J. Appl. Phys. "
-                        "75, 3732 (1994), eq. 10.",
+            key="tmhamtl",
+            title="TM+TL-Fluid, HAM on/off (aproximação: sem retorno do fluido)",
+            description="Espelho térmico HAM (High Absorption Model, alta absorção) com excitação desligada em "
+                        "t = t_off, mais a lente térmica do fluido (ar), ativa se dn/dT ≠ 0. "
+                        "Equivalente a tmhamtl-onoff.c: aproximação em que a superfície da amostra é "
+                        "livre; o fluido recebe calor e forma a TL, mas não esfria a amostra de volta. "
+                        "Para o acoplamento completo (Flizikowski et al., Opt. Express 28, 7116, 2020) "
+                        "use TM+TL-Fluid, HAM (acoplamento completo): nos três metais do artigo a "
+                        "diferença é de 1e-4 a 1e-3 do sinal com o laser ligado e chega a ~1% logo "
+                        "após desligar (inox em ar).",
             params=[
-                Param("d", 1.4e-7, "D amostra", "m²/s", True, 1e-9, 1e-4),
-                Param("th", -0.1, "θ", "rad", True, -3, 3),
-                Param("m", 30.0, "m", ""),
-                Param("w0", 50e-6, "w0e", "m"),
-                Param("v", 2.0, "V", ""),
-                Param("scale", 1.0, "I0 (escala)", "", False, 0.8, 1.2),
-            ],
-        )
-
-    def intensity(self, t, p, acc=Accuracy(), info=None):
-        t = np.asarray(t, float)
-        m, v = float(p["m"]), float(p["v"])
-        tc = p["w0"] ** 2 / (4 * p["d"])
-        with np.errstate(divide="ignore"):
-            den = ((1 + 2 * m) ** 2 + v * v) * tc / (2 * np.maximum(t, 0.0)) + 1 + 2 * m + v * v
-        arg = np.where(t > 0, 2 * m * v / den, 0.0)
-        out = (1 - 0.5 * p["th"] * np.arctan(arg)) ** 2
-        if info is not None:
-            info.update(n_alpha=0, n_g=0, max_phase=float(abs(p["th"])))
-        return out * p.get("scale", 1.0)
-
-
-# ---------------------------------------------------------------------------
-# Lente térmica com fotobranqueamento — Herculano et al., J. Phys. Chem. B 117, 1932 (2013)
-#   β(t) = β [(1−ε̄) e^{−K_T t} + ε̄]  (absorção que decai de β a ε̄·β com taxa K_T)
-#   Φ(g,t) = θ/t_c ∫₀ᵗ [ε̄ + (1−ε̄) e^{−K_T (t−ξ)}] (1+2ξ/t_c)⁻¹ [1 − e^{−2mg/(1+2ξ/t_c)}] dξ
-# Em espaço de Hankel o mesmo resultado é  Φ = ∫ K(α,t)[J0(α w0 √(m g)) − 1] dα  com
-#   K = −θ e^{−α²w²/8} F(α,t)/α,
-#   F = ε̄ (1 − e^{−bt}) + (1−ε̄) b (e^{−bt} − e^{−K_T t})/(K_T − b),   b = D α²
-# (convolução de β(t) com a resposta térmica; K_T → 0 ou ε̄ = 1 dão a TL clássica de Shen).
-# ---------------------------------------------------------------------------
-
-
-def _phi1(z):
-    """(1 − e^{−z})/z, estável em z → 0."""
-    z = np.abs(z)
-    small = z < 1e-8
-    zs = np.where(small, 1.0, z)
-    return np.where(small, 1.0 - 0.5 * z, -np.expm1(-zs) / zs)
-
-
-class TLFotobranq(Model):
-    theta_info = {
-        "th": {"def": "θ = −P_e β L φ (dn/dT) / (k λ_p),  β = absorção em t = 0 (antes de branquear)",
-               "unit": "rad",
-               "note": "Mesmo θ da TL de Shen, mas com o β inicial: o sinal em t longo corresponde a ε̄·θ. "
-                       "dn/dT < 0 (água): θ > 0 e o sinal cai. Na série, θ ∝ P_e. "
-                       "K_T [1/s] = K_m + K_pb P_e (K_m: difusão de massa; K_pb: fotobranqueamento) "
-                       "e ε̄ = ε_produtos/ε_reagentes — a reta de K_T × P_e aparece na série."},
-    }
-    linear = ("th",)
-
-    def __init__(self):
-        super().__init__(
-            key="tlbranq",
-            title="TL com fotobranqueamento (Herculano 2013)",
-            description="Lente térmica de líquido com absorção que decai por reação fotoquímica "
-                        "(pseudo-primeira ordem, taxa K_T) até ε̄·β. Ajusta θ, K_T e ε̄; fixe D com uma "
-                        "medida do solvente puro (K_T = 0). Herculano et al., J. Phys. Chem. B 117, "
-                        "1932 (2013), eqs. 3–6.",
-            params=[
-                Param("d", 1.41e-7, "D amostra", "m²/s", False, 1e-9, 1e-4),
-                Param("th", 0.05, "θ", "rad", True, -5, 5),
-                Param("kt", 2.0, "K_T", "1/s", True, 1e-4, 1e3),
-                Param("eb", 0.3, "ε̄", "", True, 0, 5),
-                Param("m", 35.1, "m", ""),
-                Param("w0", 70e-6, "w0e", "m"),
-                Param("v", 7.5, "V", ""),
+                Param("d", 3.46e-6, "D amostra", "m²/s", True, 1e-8, 1e-4),
+                Param("th", -0.57, "θ HAM", "adim.", True, -5, 5),
+                Param("m", 6.01, "m", ""),
+                Param("w0", 646e-6, "w0e", "m"),
+                Param("v", 52.6, "V", ""),
+                Param("beta", 1.73e-5, "β expansão", "1/K"),
+                Param("nu", 0.29, "ν Poisson", ""),
+                Param("dndt", 0.0, "dn/dT ar", "1/K"),
+                Param("df", 2.2e-5, "D ar", "m²/s"),
+                Param("of", 0.899, "t_off", "s"),
                 Param("scale", 1.0, "I0 (escala)", "", False, 0.8, 1.2),
             ],
         )
 
     def kernel(self, t, a, p, acc):
-        b = p["d"] * a * a
-        k, eb = p["kt"], p["eb"]
-        bt = b * t
-        # (e^{−bt} − e^{−kt})/(k − b) = t e^{−min(k,b)t} (1 − e^{−z})/z, z = |k − b| t
-        mix = t * np.exp(-np.minimum(k, b) * t) * _phi1((k - b) * t)
-        F = eb * (-np.expm1(-bt)) + (1 - eb) * b * mix
-        return -p["th"] * np.exp(-(a * p["w0"]) ** 2 / 8) * F / a
+        d, th, w0, of = p["d"], p["th"], p["w0"], p["of"]
+        u2 = (a * w0) ** 2
+        gauss = np.exp(-u2 / 8)
+        a2 = a * a
+        tt = np.broadcast_to(t, np.broadcast_shapes(t.shape, a.shape))
+        on = tt <= of
+        # argfasetm (t <= of)
+        st = np.sqrt(d * t)
+        k_on = 2 * th * gauss * (-2 * np.sqrt(d * t / np.pi) * np.exp(-d * t * a2)
+                                 + erf(st * a) / a + erfc(st * a) * 2 * d * t * a)
+        K = np.where(on, k_on, 0.0)
+        if np.any(~on):
+            to = np.maximum(t - of, 0.0)
+            sto = np.sqrt(d * to)
+            k_off = (2 * np.sqrt(d * to / np.pi) * np.exp(-a2 * (d * to + w0 * w0 / 8))
+                     - 2 * np.sqrt(d * t / np.pi) * np.exp(-a2 * (d * t + w0 * w0 / 8))
+                     + gauss / a * ((2 * d * t * a2 - 1) * erfc(st * a)
+                                    - (2 * d * to * a2 - 1) * erfc(sto * a)))
+            K = np.where(on, K, 2 * th * k_off)
+        if p["dndt"] != 0:
+            K = K + self._air(t, a, p, gauss, acc.tau_nodes)
+        return K
+
+    @staticmethod
+    def _air(t, a, p, gauss, n_tau=80, block=16):
+        """argfasear/argtau: integral em τ feita com τ = t sin²φ e tanh-sinh.
+
+        Vetorizada em (tempo × α × φ), em blocos de `block` tempos para limitar
+        a memória (~block·Nα·Nφ números por bloco)."""
+        d, df, of = p["d"], p["df"], p["of"]
+        pref = -p["th"] * 2 * p["dndt"] / (p["beta"] * (1 + p["nu"])) * np.sqrt(df / np.pi)
+        x, w = tanh_sinh(n_tau)
+        tv = t[:, 0]
+        av2 = (a[0] ** 2)[None, :, None]                      # (1, Nα, 1)
+        av = a[0][None, :, None]
+        J = np.empty((tv.size, a.shape[1]))
+        for i0 in range(0, tv.size, block):
+            ti = tv[i0:i0 + block]
+            lo = np.where(ti <= of, 0.0, np.arcsin(np.sqrt(np.clip((ti - of) / ti, 0, 1))))
+            span = 0.5 * np.pi - lo
+            phi = lo[:, None] + span[:, None] * x[None, :]   # (nb, Nφ)
+            wp = span[:, None] * w[None, :]
+            s2 = np.sin(phi) ** 2
+            c = np.cos(phi)
+            tt = ti[:, None, None]
+            # 2 sqrt(t) ∫ cosφ e^{-α² df t sin²φ} erf(α sqrt(d t) cosφ) dφ
+            f = c[:, None, :] * np.exp(-av2 * df * tt * s2[:, None, :]) * \
+                erf(av * np.sqrt(d * tt) * c[:, None, :])
+            J[i0:i0 + block] = 2 * np.sqrt(ti)[:, None] * np.einsum("tap,tp->ta", f, wp)
+        return pref * gauss * J
 
 
 # ---------------------------------------------------------------------------
@@ -971,14 +1068,14 @@ class TMFluido(Model):
     def __init__(self):
         super().__init__(
             key="tmfluido",
-            title="TM+TM-Fluid, HAM (acoplamento completo, Flizikowski 2020)",
+            title="TM+TL-Fluid, HAM (acoplamento completo, Flizikowski 2020)",
             description="Espelho térmico de amostra opaca e lente térmica do fluido não absorvente "
                         "em contato, com troca de calor amostra–fluido (sem a restrição k_f√D ≪ k√D_f). "
                         "Lukasievicz et al., Appl. Spectrosc. 66, 1461 (2012), eqs. 20–22. "
                         "k_s = D_s ρ_s c_s e k_f = D_f ρ_f c_f: fixe ρ e c e ajuste as difusividades. "
                         "Para ar, o fluido quase não muda a amostra; em água, sim. "
                         "É o modelo completo de Flizikowski et al., Opt. Express 28, 7116 (2020), eqs. 3–10; "
-                        "o TM+TM-Fluid, HAM on/off (aproximação) ignora o retorno do fluido sobre a amostra.",
+                        "o TM+TL-Fluid, HAM on/off (aproximação) ignora o retorno do fluido sobre a amostra.",
             presets={
                 "Ar": {"values": dict(df=2.19e-5, cf=1005, denf=1.18),
                        "bounds": dict(thf=[-1e3, 1e3], df=[1e-6, 1e-3])},
@@ -1024,102 +1121,6 @@ class TMFluido(Model):
             K = K - np.where(tt > of, self._K(np.maximum(tt - of, 0.0), aa, p), 0.0)
         return np.exp(-(aa * p["w0"]) ** 2 / 8) * K
 
-
-# ---------------------------------------------------------------------------
-# Lente térmica + lente de população — Silva et al., Appl. Phys. Lett. 102, 141910 (2013)
-#   Φ = Φ_th + Φ_PL
-#   Φ_th = θ_th ∫₀ᵗ dξ/(t_c + 2ξ) [1 − e^{−2mg/(1+2ξ/t_c)}]            (= TL de Shen)
-#   Φ_PL = θ_PL ∫₀ˡ  u/(1/τ + h u) [1 − e^{−t(1/τ + h u)}] dz,   u = e^{−2mg} e^{−A_e z}
-# (população do estado excitado por equação de taxa de dois níveis, saturável; h é a taxa de
-# excitação no centro, h = I0 (σ_abs + σ_se)/E). Com u = e^{−2mg − A_e z} a integral em z fica
-#   Φ_PL = θ_PL /(A_e h) ∫_{s_L}^{s_0} (1 − e^{−t s})/s ds,  s = 1/τ + h u,
-#   ∫ = ln(s0/sL) − [E1(t sL) − E1(t s0)]   (série em t s para t s0 ≤ 1; quadratura em z se A_e l < 0,02).
-# Como no artigo, a fase é Φ_PL(g) − Φ_PL(0) (uma fase constante não altera a intensidade).
-# ---------------------------------------------------------------------------
-
-from scipy.special import exp1 as _exp1
-
-_GL8 = np.polynomial.legendre.leggauss(8)
-
-
-def _pl_unit_phase(t, u0, ae, l, h, tau):
-    """Φ_PL para θ_PL = 1; t (Nt,1), u0 = e^{−2mg} (1,Ng) ou (Ng,)."""
-    t = np.asarray(t, float)
-    u0 = np.asarray(u0, float)[None, :] if np.ndim(u0) == 1 else u0
-    k = 1.0 / tau
-    if ae * l < 0.02:
-        x, w = _GL8
-        out = 0.0
-        for xi, wi in zip(x, w):
-            z = 0.5 * l * (xi + 1)
-            u = u0 * np.exp(-ae * z)
-            sk = k + h * u
-            out = out + 0.5 * l * wi * u / sk * (-np.expm1(-t * sk))
-        return out
-    s0 = k + h * u0
-    sL = k + h * u0 * np.exp(-ae * l)
-    x0 = t * s0
-    small = x0 <= 1.0
-    # série: Σ (−1)^{j+1} t^j (s0^j − sL^j)/(j·j!)
-    a0, aL = np.where(small, x0, 0.0), np.where(small, t * sL, 0.0)
-    ser = 0.0
-    fact = 1.0
-    for j in range(1, 15):
-        fact *= j
-        ser = ser + (-1) ** (j + 1) * (a0 ** j - aL ** j) / (j * fact)
-    xL = np.where(small, 1.0, t * sL)
-    xb = np.where(small, 1.0, x0)
-    closed = np.log(s0 / sL) - (_exp1(xL) - _exp1(xb))
-    return np.where(small, ser, closed) / (ae * h)
-
-
-class TLPopulacao(Model):
-    theta_info = {
-        "th": {"def": "θ_th = −P_abs (ds/dT) φ / (k λ_p),  P_abs = P A_e L,  L = (1 − e^{−A_e l})/A_e",
-               "unit": "rad",
-               "note": "Mesmo θ do Shen. ds/dT < 0 (ZBLAN) com aquecimento: θ_th > 0; "
-                       "resfriamento a laser inverte o sinal (φ < 0)."},
-        "tpl": {"def": "θ_PL = I0 σ_abs N_T Δα_P (2π f_L)² / (n λ_p E)",
-                "unit": "1/(m·s)",
-                "note": "Força da lente de população. Δα_P: diferença de polarizabilidade eletrônica "
-                        "excitado–fundamental; f_L = (n²+2)/3; E = h c/λ_ex; I0 = 2P/(π w_e²)."},
-    }
-    linear = ("th", "tpl")
-    direct = ("tpl",)
-
-    def __init__(self):
-        super().__init__(
-            key="tlpop",
-            title="TL + lente de população (Silva 2013)",
-            description="Lente térmica mais lente de população do estado excitado (vida τ, taxa de "
-                        "excitação h = I0(σ_abs+σ_se)/E no centro, absorção A_e, espessura l). "
-                        "Silva et al., Appl. Phys. Lett. 102, 141910 (2013), eqs. 1–3. "
-                        "Ajusta θ_th, θ_PL, τ e D; m e V são da montagem, h, A_e e l são conhecidos.",
-            params=[
-                Param("d", 2.5e-7, "D amostra", "m²/s", True, 1e-9, 1e-4),
-                Param("th", 0.04, "θ_th", "rad", True, -3, 3),
-                Param("tpl", 2900.0, "θ_PL", "1/(m·s)", True, -1e7, 1e7),
-                Param("tau", 1.7e-3, "τ (vida)", "s", True, 1e-5, 1e-1),
-                Param("h", 40.0, "h (taxa de excitação)", "1/s", False, 1e-3, 1e5),
-                Param("ae", 240.0, "A_e absorção", "1/m", False, 0.0, 1e5),
-                Param("l", 3.79e-3, "l espessura", "m"),
-                Param("m", 28.7, "m", ""),
-                Param("w0", 144e-6, "w0e", "m"),
-                Param("v", 15.0, "V", ""),
-                Param("scale", 1.0, "I0 (escala)", "", False, 0.8, 1.2),
-            ],
-        )
-
-    def kernel(self, t, a, p, acc):
-        # parte térmica (Shen): K = −θ_th e^{−α²w²/8} (1 − e^{−Dα²t})/α
-        return -p["th"] * np.exp(-(a * p["w0"]) ** 2 / 8) * (-np.expm1(-p["d"] * a * a * t)) / a
-
-    def direct_phase(self, name, t, g, p):
-        g = np.asarray(g, float)
-        u0 = np.exp(-2 * p["m"] * g)
-        both = np.concatenate([[1.0], u0])          # u = 1 em g = 0 (referência do centro)
-        ph = _pl_unit_phase(t, both, p["ae"], p["l"], p["h"], p["tau"])
-        return ph[:, 1:] - ph[:, :1]
 
 
 # Ordem na interface: primeiro os modelos de TL, depois os de TM (o primeiro é o padrão ao abrir).
