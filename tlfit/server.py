@@ -158,7 +158,7 @@ def _model_info():
     out = []
     for m in MODELS.values():
         out.append(dict(key=m.key, title=m.title, description=m.description, presets=m.presets,
-                        linear=list(m.linear),
+                        linear=list(m.linear), theta_info=m.theta_info,
                         proportional=sorted(set(m.linear) | set(getattr(m, "proportional", ()))),
                         params=[dict(name=p.name, label=p.label, unit=p.unit, value=p.value,
                                      fit=p.fit, lo=p.lo, hi=p.hi) for p in m.params]))

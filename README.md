@@ -34,9 +34,18 @@ e uma forma de integrar o modelo várias centenas de vezes mais rápida que a ve
 | **TM-BAM** (lei de Beer) | espelho térmico para qualquer A_e; tende ao LAM e ao HAM | Sato et al. (2008), eq. 33–34 |
 | **TL de Shen** | expressão fechada clássica da lente térmica no modo descasado | Baesso, Shen & Snook, *J. Appl. Phys.* **75**, 3732 (1994), eq. 10 |
 
-Nos modelos de espelho térmico novos, θ_TM = −P_e A_e α_T (1+ν) φ/(λ_p k) é dado em 1/m,
-como nos artigos, e todos aceitam desligamento da excitação em `t_off` (0 = sem desligar).
-O HAM continua com θ adimensional: θ_HAM = θ_TM/A_e. A convenção de sinal da fase é a mesma
+**Cada modelo tem o seu θ.** A interface mostra a definição e a unidade do θ do modelo
+escolhido logo abaixo da descrição, e o relatório e a série repetem essa definição:
+
+| Modelo | θ ajustado | Unidade |
+|---|---|---|
+| TLLAM | θ amostra = ϑ·10⁻⁶, ϑ = P_e A_e φ/(k_s λ_p) (a fase é ϑ·l·χ(α,l)) | 10⁶ K/m |
+| TLLAM | θ fluido = 2 P_e A_e φ (∂n_f/∂T)/λ_p | W/(K·m²) |
+| TM-HAM | θ_HAM = θ_TM/A_e = −P_e α_T (1+ν) φ/(λ_p k) | adimensional |
+| TM-LAM, TM finito, TM-BAM | θ_TM = −P_e A_e α_T (1+ν) φ/(λ_p k) | 1/m |
+| Shen | θ = −P_e A_e L φ (ds/dT)/(k λ_p) | rad |
+
+Os modelos de espelho térmico aceitam desligamento da excitação em `t_off` (0 = sem desligar). A convenção de sinal da fase é a mesma
 do `tmhamtl-onoff.c` (fase somada a V·g na integral de difração); em relação à eq. 31 de
 Sato et al. isso equivale a trocar o sinal de θ_TM, sem nenhum outro efeito no ajuste.
 

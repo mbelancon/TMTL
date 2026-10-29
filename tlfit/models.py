@@ -213,6 +213,8 @@ class Model:
     linear = ()
     # False para modelos em forma fechada (sem K·M): o ajuste em dois níveis não se aplica
     phase_based = True
+    # definição física de cada θ ajustável: {param: {"def", "unit", "note"}} (mostrada na interface)
+    theta_info = {}
 
     # implementado pelas subclasses
     def kernel(self, t, alpha, p, acc):
@@ -353,6 +355,13 @@ def _hh(x):
 
 
 class TLLAM(Model):
+    theta_info = {
+        "ths": {"def": "θ amostra = ϑ·10⁻⁶,  ϑ = P_e A_e φ / (k_s λ_p)", "unit": "10⁶ K/m",
+                "note": "A fase da amostra é ϑ·l·χ(α,l), com χ (dn/dT, α_T, ν, E, q∥, q⊥) em 10⁻⁶/K. "
+                        "Não é o θ em rad do modelo de Shen: a espessura l e o coeficiente χ ficam fora dele."},
+        "thf": {"def": "θ fluido = 2 P_e A_e φ (∂n_f/∂T) / λ_p", "unit": "W/(K·m²)",
+                "note": "θ fluido / θ amostra = 2·10⁶ k_s (∂n_f/∂T): com k_s conhecido, dá o ∂n/∂T do fluido."},
+    }
     linear = ("ths", "thf")
 
     def __init__(self):
@@ -370,8 +379,8 @@ class TLLAM(Model):
             },
             params=[
                 Param("d", 5e-7, "D amostra", "m²/s", True, 1e-8, 1e-5),
-                Param("ths", 4.0, "θ amostra", "rad", True, -50, 50),
-                Param("thf", 0.0, "θ fluido", "rad", True, -200, 200),
+                Param("ths", 4.0, "θ amostra", "10⁶ K/m", True, -50, 50),
+                Param("thf", 0.0, "θ fluido", "W/(K·m²)", True, -200, 200),
                 Param("m", 22.1, "m", ""),
                 Param("w0", 57e-6, "w0e", "m"),
                 Param("v", 2.07, "V", ""),
@@ -457,6 +466,11 @@ class TLLAM(Model):
 
 
 class TMHAMTL(Model):
+    theta_info = {
+        "th": {"def": "θ_HAM = θ_TM / A_e = −P_e α_T (1+ν) φ / (λ_p k)", "unit": "adimensional",
+               "note": "Não contém A_e (amostra opaca). Para comparar com LAM, BAM e amostra finita, "
+                       "que dão θ_TM em 1/m: θ_TM = θ_HAM·A_e. Amostra que dilata (α_T > 0): θ < 0."},
+    }
     linear = ("th",)     # a lente no ar também é proporcional a θ (pref ∝ th)
 
     def __init__(self):
@@ -468,7 +482,7 @@ class TMHAMTL(Model):
                         "Equivalente a tmhamtl-onoff.c.",
             params=[
                 Param("d", 3.46e-6, "D amostra", "m²/s", True, 1e-8, 1e-4),
-                Param("th", -0.57, "θ TM", "", True, -5, 5),
+                Param("th", -0.57, "θ HAM", "adim.", True, -5, 5),
                 Param("m", 6.01, "m", ""),
                 Param("w0", 646e-6, "w0e", "m"),
                 Param("v", 52.6, "V", ""),
@@ -652,6 +666,11 @@ def bam_g(a, t, ae, d, rel=1e-4, zmax=0.75):
 class _TMBase(Model):
     """Espelho térmico (fase 4 θ_TM ∫ e^{−α²w²/8} F(α,t) [J0 − 1] dα) com on/off."""
     linear = ("th",)
+    theta_info = {
+        "th": {"def": "θ_TM = −P_e A_e α_T (1+ν) φ / (λ_p k)", "unit": "1/m",
+               "note": "Mesmo θ_TM nos modelos LAM, BAM e amostra finita (é o θ_TM dos artigos, em m⁻¹). "
+                       "O modelo HAM usa θ_TM/A_e, adimensional. Amostra que dilata (α_T > 0): θ_TM < 0."},
+    }
 
     def _F(self, t, a, p):
         raise NotImplementedError
@@ -740,6 +759,11 @@ class TMBAM(_TMBase):
 
 
 class TLShen(Model):
+    theta_info = {
+        "th": {"def": "θ = −P_e A_e L φ (ds/dT) / (k λ_p)", "unit": "rad",
+               "note": "θ da lente térmica clássica: inclui a espessura L. Não confundir com o θ_TM do "
+                       "espelho térmico (1/m) nem com o θ amostra do TLLAM. ds/dT > 0: θ < 0 e o sinal sobe."},
+    }
     linear = ()
     phase_based = False     # sem fase integral: o ajuste usa PSO + LM direto
     proportional = ("th",)  # na série, θ ∝ P (inclinação θ/P)
