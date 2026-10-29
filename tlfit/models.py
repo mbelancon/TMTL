@@ -481,7 +481,7 @@ class TLLAM(Model):
 
 
 # ---------------------------------------------------------------------------
-# TM+TM-Fluid, HAM on/off (aproximação, sem retorno do fluido) — equivalente a tmhamtl-onoff.c
+# TM+TL-Fluid, HAM on/off (aproximação, sem retorno do fluido) — equivalente a tmhamtl-onoff.c
 # ---------------------------------------------------------------------------
 
 
@@ -497,13 +497,13 @@ class TMHAMTL(Model):
     def __init__(self):
         super().__init__(
             key="tmhamtl",
-            title="TM+TM-Fluid, HAM on/off (aproximação: sem retorno do fluido)",
+            title="TM+TL-Fluid, HAM on/off (aproximação: sem retorno do fluido)",
             description="Espelho térmico (alta absorção) com excitação desligada em "
                         "t = t_off, mais a lente térmica do fluido (ar), ativa se dn/dT ≠ 0. "
                         "Equivalente a tmhamtl-onoff.c: aproximação em que a superfície da amostra é "
                         "livre; o fluido recebe calor e forma a TL, mas não esfria a amostra de volta. "
                         "Para o acoplamento completo (Flizikowski et al., Opt. Express 28, 7116, 2020) "
-                        "use TM+TM-Fluid, HAM (acoplamento completo): nos três metais do artigo a "
+                        "use TM+TL-Fluid, HAM (acoplamento completo): nos três metais do artigo a "
                         "diferença é de 1e-4 a 1e-3 do sinal com o laser ligado e chega a ~1% logo "
                         "após desligar (inox em ar).",
             params=[
@@ -971,14 +971,14 @@ class TMFluido(Model):
     def __init__(self):
         super().__init__(
             key="tmfluido",
-            title="TM+TM-Fluid, HAM (acoplamento completo, Flizikowski 2020)",
+            title="TM+TL-Fluid, HAM (acoplamento completo, Flizikowski 2020)",
             description="Espelho térmico de amostra opaca e lente térmica do fluido não absorvente "
                         "em contato, com troca de calor amostra–fluido (sem a restrição k_f√D ≪ k√D_f). "
                         "Lukasievicz et al., Appl. Spectrosc. 66, 1461 (2012), eqs. 20–22. "
                         "k_s = D_s ρ_s c_s e k_f = D_f ρ_f c_f: fixe ρ e c e ajuste as difusividades. "
                         "Para ar, o fluido quase não muda a amostra; em água, sim. "
                         "É o modelo completo de Flizikowski et al., Opt. Express 28, 7116 (2020), eqs. 3–10; "
-                        "o TM+TM-Fluid, HAM on/off (aproximação) ignora o retorno do fluido sobre a amostra.",
+                        "o TM+TL-Fluid, HAM on/off (aproximação) ignora o retorno do fluido sobre a amostra.",
             presets={
                 "Ar": {"values": dict(df=2.19e-5, cf=1005, denf=1.18),
                        "bounds": dict(thf=[-1e3, 1e3], df=[1e-6, 1e-3])},
