@@ -380,3 +380,14 @@ versões modificadas também sejam distribuídas sob a GPL. O texto completo est
 
 A versão portátil inclui o Python (licença PSF), o numpy e o scipy (licenças BSD); os textos
 dessas licenças acompanham cada componente dentro da pasta `python` da versão portátil.
+
+## Agradecimentos
+
+Agradeço à Universidade Estadual de Maringá, em especial ao Programa de Pós-Graduação em
+Física. Agradeço de modo especial aos professores que dirigiram os projetos dos quais resultaram
+os modelos implementados aqui: Luis C. Malacarne
+([Google Scholar](https://scholar.google.com.br/citations?user=AeaidPoAAAAJ&hl=pt-BR)),
+Nelson G. C. Astrath
+([Google Scholar](https://scholar.google.com.br/citations?user=9ryRh9oAAAAJ&hl=pt-BR)) e
+Mauro L. Baesso
+([Google Scholar](https://scholar.google.com.br/citations?user=Kea32YMAAAAJ&hl=pt-BR)).
