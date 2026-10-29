@@ -1,27 +1,12 @@
-# TMTL 2 — ajuste rápido de transientes de lente térmica
+# TMTL FIT - Ajuste rápido
 
 Ajuste de transientes de lente térmica e espelho térmico resolvidos no tempo, com interface
-gráfica, ajuste de séries de transientes (várias potências)
-e uma forma de integrar o modelo várias centenas de vezes mais rápida que a versão original.
+gráfica e ajuste de séries de transientes (várias potências).
 
 > **Versão portátil para Windows, sem precisar instalar Python:** baixe o zip
 > `TMTL2-…-portatil-windows.zip` na página
 > [Releases](https://github.com/mbelancon/TMTL/releases), descompacte e dê dois cliques em
 > `Abrir TMTL2.bat`. Detalhes em [Para usar](#para-usar).
-
-> **Para quem usava o código original (`tllam.c`):** o termo do fluido do TLLAM tinha um
-> erro de sinal que afeta amostras em água, polímeros e materiais de difusividade maior que
-> a do ar. Ajustes de vidros e cristais comuns **em ar não são afetados**. Veja
-> [Erros corrigidos no código original](#erros-corrigidos-no-código-original). O código
-> original continua disponível em [`legado/`](legado/).
-
-| Avaliação de um transiente | Original (C com GSL, 2 núcleos) | TMTL2 (Python/NumPy) |
-|---|---|---|
-| TLLAM, 86 pontos | 4,9 s | 0,02–0,05 s |
-| TM+TL-Fluid, HAM on/off (aproximação), 123 pontos, dn/dT ar = 0 | 81 s* | 0,2 s |
-| TM+TL-Fluid, HAM on/off (aproximação) com lente no ar (dn/dT ≠ 0) | > 20 min (60 pontos, não terminou) | 0,5 s |
-
-\* depois de corrigir o vazamento de memória; sem a correção o processo é morto por falta de memória.
 
 ## Modelos
 
@@ -29,6 +14,11 @@ Nomes: **TM** é o espelho térmico (*thermal mirror*) e **TL** a lente térmica
 Quando o modelo soma a TL ou o TM de um sólido à lente térmica do fluido em contato (ar, água), o
 nome leva "+TL-Fluid": **TL+TL-Fluid** e **TM+TL-Fluid**. O fluido contribui sempre com uma lente
 térmica; não há espelho térmico no fluido.
+
+Siglas LAM, BAM e HAM (Sato et al., 2008): o **L**, o **B** e o **H** são as iniciais de *Low*, *Beer* e
+*High*, de *absorption model*: **LAM** = *Low Absorption Model* (baixa absorção, A_e·espessura ≪ 1),
+**BAM** = *Beer Absorption Model* (absorção pela lei de Beer, vale para qualquer A_e) e **HAM** =
+*High Absorption Model* (alta absorção, calor depositado na superfície).
 
 | Modelo | Uso | Referência |
 |---|---|---|
