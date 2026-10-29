@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import json
+import re
+import unicodedata
 import threading
 import time
 import traceback
@@ -148,11 +150,16 @@ class Job:
                 elapsed=time.time() - self.started))
 
 
+def _ascii(s):
+    return unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode()
+
+
 def _model_info():
     out = []
     for m in MODELS.values():
         out.append(dict(key=m.key, title=m.title, description=m.description, presets=m.presets,
-                        linear=list(m.linear),
+                        linear=list(m.linear), theta_info=m.theta_info,
+                        proportional=sorted(set(m.linear) | set(getattr(m, "proportional", ()))),
                         params=[dict(name=p.name, label=p.label, unit=p.unit, value=p.value,
                                      fit=p.fit, lo=p.lo, hi=p.hi) for p in m.params]))
     return out
@@ -193,7 +200,19 @@ class Handler(BaseHTTPRequestHandler):
             name = Path(path.rsplit("/", 1)[-1]).name
             f = Path(__file__).parent / "examples" / name
             if f.is_file():
-                return self._send(200, dict(name=name, text=f.read_text()))
+                text = f.read_text(encoding="utf-8")
+                # linha opcional "# tlfit: modelo=<chave> m=… w0=…": escolhe o modelo e a geometria
+                hdr = re.search(r"^#\s*tlfit:\s*modelo=(\w+)(.*)$", text, re.M)
+                extra = {}
+                if hdr and hdr.group(1) in MODELS:
+                    extra = dict(model=hdr.group(1), params={
+                        k: float(v) for k, v in re.findall(r"(\w+)=([-+0-9.eE]+)(?:\s|$)", hdr.group(2))})
+                    pr = re.search(r"preset=(\S+)", hdr.group(2))
+                    if pr:   # os arquivos de exemplo são ASCII: "Agua" casa com "Água"
+                        want = _ascii(pr.group(1)).lower()
+                        extra["preset"] = next((k for k in MODELS[hdr.group(1)].presets
+                                                if _ascii(k).lower() == want), pr.group(1))
+                return self._send(200, dict(name=name, text=text, **extra))
             return self._send(404, {"error": "exemplo não encontrado"})
         if path == "/api/ping":
             LAST_PING[0] = time.time()
@@ -204,7 +223,7 @@ class Handler(BaseHTTPRequestHandler):
             base = Path(__file__).parent / "examples"
             out = []
             for d in sorted(p for p in base.iterdir() if p.is_dir() and p.name.startswith("serie_")):
-                out.append(dict(name=d.name, files=[dict(name=f.name, text=f.read_text())
+                out.append(dict(name=d.name, files=[dict(name=f.name, text=f.read_text(encoding="utf-8", errors="replace"))
                                                     for f in sorted(d.glob("*.dat"))]))
             return self._send(200, out)
         if path.startswith("/api/batch/"):

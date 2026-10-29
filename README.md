@@ -1,7 +1,7 @@
 # TMTL 2 — ajuste rápido de transientes de lente térmica
 
-Ajuste de transientes de lente térmica e espelho térmico resolvidos no tempo (modelos TLLAM
-e TM-HAM on/off), com interface gráfica, ajuste de séries de transientes (várias potências)
+Ajuste de transientes de lente térmica e espelho térmico resolvidos no tempo, com interface
+gráfica, ajuste de séries de transientes (várias potências)
 e uma forma de integrar o modelo várias centenas de vezes mais rápida que a versão original.
 
 > **Versão portátil para Windows, sem precisar instalar Python:** baixe o zip
@@ -15,13 +15,45 @@ e uma forma de integrar o modelo várias centenas de vezes mais rápida que a ve
 > [Erros corrigidos no código original](#erros-corrigidos-no-código-original). O código
 > original continua disponível em [`legado/`](legado/).
 
-| Avaliação de um transiente | Original (GSL, 2 núcleos) | Novo (C) | Novo (Python/NumPy) |
-|---|---|---|---|
-| TLLAM, 86 pontos | 4,9 s | 0,09 s | 0,02–0,05 s |
-| TM-HAM on/off, 123 pontos, dn/dT ar = 0 | 81 s* | 0,9 s | 0,2 s |
-| TM-HAM on/off com lente no ar (dn/dT ≠ 0) | > 20 min (60 pontos, não terminou) | 1,3 s | 0,5 s |
+| Avaliação de um transiente | Original (C com GSL, 2 núcleos) | TMTL2 (Python/NumPy) |
+|---|---|---|
+| TLLAM, 86 pontos | 4,9 s | 0,02–0,05 s |
+| TM-HAM on/off, 123 pontos, dn/dT ar = 0 | 81 s* | 0,2 s |
+| TM-HAM on/off com lente no ar (dn/dT ≠ 0) | > 20 min (60 pontos, não terminou) | 0,5 s |
 
 \* depois de corrigir o vazamento de memória; sem a correção o processo é morto por falta de memória.
+
+## Modelos
+
+| Modelo | Uso | Referência |
+|---|---|---|
+| **TLLAM** — TL amostra + fluido | lente térmica com acoplamento térmico amostra–fluido e espessura qualquer (modelo unificado) | Malacarne et al., *Appl. Spectrosc.* **65**, 99 (2011) |
+| **TM-HAM on/off + TL no ar** | espelho térmico em amostra opaca, com desligamento e lente no ar | Sato et al., *J. Appl. Phys.* **104**, 053520 (2008) |
+| **TM-LAM** | espelho térmico, baixa absorção (fonte uniforme em z), amostra semi-infinita | Sato et al. (2008), eq. 32 |
+| **TM-LAM, amostra finita** | espelho térmico de baixa absorção em amostra de espessura *l* (faces livres) | Astrath et al., *J. Opt. Soc. Am. B* **28**, 1735 (2011), eq. 10 |
+| **TM-BAM** (lei de Beer) | espelho térmico para qualquer A_e; tende ao LAM e ao HAM | Sato et al. (2008), eq. 33–34 |
+| **TL de Shen** | expressão fechada clássica da lente térmica no modo descasado | Baesso, Shen & Snook, *J. Appl. Phys.* **75**, 3732 (1994), eq. 10 |
+
+**Cada modelo tem o seu θ.** A interface mostra a definição e a unidade do θ do modelo
+escolhido logo abaixo da descrição, e o relatório e a série repetem essa definição:
+
+| Modelo | θ ajustado | Unidade |
+|---|---|---|
+| TLLAM | θ amostra = ϑ·10⁻⁶, ϑ = P_e A_e φ/(k_s λ_p) (a fase é ϑ·l·χ(α,l)) | 10⁶ K/m |
+| TLLAM | θ fluido = 2 P_e A_e φ (∂n_f/∂T)/λ_p | W/(K·m²) |
+| TM-HAM | θ_HAM = θ_TM/A_e = −P_e α_T (1+ν) φ/(λ_p k) | adimensional |
+| TM-LAM, TM finito, TM-BAM | θ_TM = −P_e A_e α_T (1+ν) φ/(λ_p k) | 1/m |
+| Shen | θ = −P_e A_e L φ (ds/dT)/(k λ_p) | rad |
+
+Os modelos de espelho térmico aceitam desligamento da excitação em `t_off` (0 = sem desligar). A convenção de sinal da fase é a mesma
+do `tmhamtl-onoff.c` (fase somada a V·g na integral de difração); em relação à eq. 31 de
+Sato et al. isso equivale a trocar o sinal de θ_TM, sem nenhum outro efeito no ajuste.
+
+O modelo de Shen é de primeira ordem em θ: para |θ| ≳ 0,1 rad a diferença para a integral
+de difração completa passa de ~1 % do sinal. Para sinais grandes, use os modelos integrais.
+
+Os exemplos (`tlfit/examples/`) trazem uma linha `# tlfit: modelo=… m=… w0=…` que, ao abrir o
+exemplo na interface, escolhe o modelo e preenche a geometria.
 
 ## Para usar
 
@@ -202,12 +234,11 @@ As mudanças:
 ## Validação
 
 `python tests/validate.py` compara com curvas geradas pelos programas originais (em
-`tests/ref/`), checa a autoconvergência e, se a biblioteca C estiver compilada, compara C e
-Python:
+`tests/ref/`) e checa a autoconvergência:
 
-    tllam    |novo−original| 4.9e-07   autoconvergência 2.3e-09   |C−Python| 1.0e-14
-    tllam    |novo−original| 5.0e-07   autoconvergência 2.8e-09   |C−Python| 1.1e-14
-    tmhamtl  |novo−original| 1.5e-04   autoconvergência 4.3e-14   |C−Python| 3.5e-13
+    tllam    |novo−original| 4.9e-07   autoconvergência 2.3e-09
+    tllam    |novo−original| 5.0e-07   autoconvergência 2.8e-09
+    tmhamtl  |novo−original| 1.5e-04   autoconvergência 4.3e-14
 
 Esses casos de referência são em ar, onde o código original está correto. O teste também
 compara o termo do fluido com a inversão numérica da solução de Laplace nos dois regimes
@@ -217,25 +248,34 @@ da fórmula (erf e Dawson):
     fluido   Laplace, ramo Dawson: erro relativo máx 3.6e-11
     ajuste   água, modo automático: χ² = 9.05310e-06, D = 4.97742e-07, θs = 4.6501, θf = -1197.1
 
+Para os modelos de espelho térmico novos e o de Shen, o teste confere:
+
+    TM-BAM   Ĝ(α,t) contra quadratura em τ: erro relativo máx 3.4e-08
+    TM-LAM   fase contra a eq. 32 de Sato et al. (2008): erro relativo máx 2.4e-15
+    limites  BAM→HAM 1.7e-09   BAM→LAM 2.1e-08   finito→LAM 1.3e-10 (relativo ao sinal)
+    TL Shen  contra a integral de difração (θ = 0,01): diferença 1.1e-03 do sinal (ordem θ)
+    ajuste   tmlam     D = 6.0163e-07 (+1.1σ)  θ = -120.02 (-0.3σ)
+    ajuste   tmbam     D = 6.0266e-07 (+2.0σ)  θ = -149.9 (+2.1σ)
+    ajuste   tmfinito  D = 5.0145e-07 (+1.4σ)  θ = -149.93 (+1.0σ)
+    ajuste   tlshen    D = 4.9652e-07 (-1.3σ)  θ = -0.10419 (-1.3σ)
+
+* O núcleo do BAM, Ĝ(α,t) = ∫T̂(α,z,t)e^{−αz}dz, sai de
+  dĜ/dt = [A_e erfc(αs) − α e^{−α²s²} erfcx(A_e s)]/(A_e² − α²), s = √(Dt), integrada em
+  forma fechada. Onde a forma fechada perde precisão (s·max(α, A_e) pequeno, ou α ≈ A_e) é
+  usada uma série em s em que o fator (A_e² − α²) cancela termo a termo. O resultado é
+  comparado com a quadratura numérica direta de dĜ/dt em 400 pontos aleatórios
+  (0,1 < A_e < 10⁸ m⁻¹, 10⁻⁶ < t < 10 s, inclusive α ≈ A_e).
+* O LAM coincide com a forma fechada em g da eq. 32 de Sato et al.; o BAM tende ao HAM do
+  `tmhamtl-onoff.c` (inclusive no desligamento) quando A_e cresce, e ao LAM quando A_e → 0.
+* Ajustando com o LAM curvas geradas pelo BAM (geometria da fig. 11 de Sato et al.), os
+  erros em θ_TM e t_c são de ~1,5 % para A_e = 77 m⁻¹ e de 16–18 % para 1061 m⁻¹, como
+  no artigo: acima de ~200 m⁻¹ use o BAM.
+* Os ajustes dos quatro exemplos sintéticos recuperam D e θ dentro de ±2,1σ.
+
 No TLLAM a diferença é o arredondamento da saída do original (6 casas). No TM a diferença
 vem da tolerância do original (QAG com erro relativo 1e-4): recompilando o programa original
 com tolerância 1e-8, os pontos de maior discrepância (t = 0,37 s e 1,85 s) passam a coincidir
 com o código novo em todas as 6 casas impressas (0,790799 e 0,998527).
-
-## Programas em C (substitutos diretos)
-
-`c/` contém o núcleo em C99 sem GSL (só libm) e dois programas com **os mesmos argumentos e
-a mesma saída** dos originais, para continuar usando os notebooks antigos:
-
-```bash
-cd c && make          # gera tllam_fast, tmhamtl_fast e libtlcore.so
-./tllam_fast datatofit.dat ds ths thf m w0 v l df cs cf dens denf [ns nf E coefexp dndts nu qpen qpar]
-./tmhamtl_fast dados.dat d th m w0 v beta nu dndt df of
-```
-
-No Windows (MinGW/MSYS2): `make EXE=.exe LIB=tlcore.dll`.
-Os 8 parâmetros de material do TLLAM são opcionais (padrão = valores fixos do `tllam.c`),
-o que também cobre a versão do `tllam.exe` que os recebia pela linha de comando.
 
 ## Uso como biblioteca
 
@@ -259,13 +299,12 @@ print(res["params"]["d"], res["sigma"]["d"])
     montar_portatil.bat monta a versão portátil (ferramentas/montar_portatil.ps1)
     .github/workflows/  build automático da versão portátil e Releases
     legado/             código original (C com GSL), notebook e README da versão 1
-    tlfit/models.py     modelos TLLAM e TM-HAM on/off (NumPy/SciPy)
+    tlfit/models.py     modelos (TLLAM, TM-HAM, TM-LAM, TM finito, TM-BAM, Shen)
     tlfit/optim.py      ajuste em dois níveis, PSO, Levenberg–Marquardt, incertezas
     tlfit/batch.py      ajuste de séries e estatística (θ/P, médias, tendências)
     tlfit/server.py     servidor local (biblioteca padrão) para a interface
     tlfit/static/       interface (HTML/JS, sem dependências externas)
     tlfit/examples/     transientes e séries de exemplo
-    c/                  núcleo em C e programas de linha de comando
     tests/              validação contra o código original
 
 Referência do modelo TLLAM: L. C. Malacarne et al., *Appl. Spectrosc.* **65**, 99 (2011),

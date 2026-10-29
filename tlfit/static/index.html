@@ -39,6 +39,13 @@ section.blk>h2{font-size:14px;font-weight:700;margin:0 0 10px}
 .row label{font-size:13px;color:var(--muted)}
 .row[hidden]{display:none}
 .hint{font-size:12.5px;color:var(--muted);margin:4px 0 8px}
+.thetabox{border-left:3px solid var(--fit);background:#fbf3f5;padding:7px 10px;margin:4px 0 10px;font-size:12.5px;line-height:1.45}
+.thetabox[hidden]{display:none}
+.thetabox b{font-weight:700}
+.thetabox .tdef{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}
+.thetabox .tnote{color:var(--muted)}
+.thetabox div+div{margin-top:6px}
+td.name .tq{display:inline-block;margin-left:3px;padding:0 5px;border-radius:8px;background:var(--fit);color:#fff;font-size:10.5px;cursor:help}
 
 .btn{border:1px solid var(--line);background:#fff;border-radius:6px;padding:6px 12px;cursor:pointer}
 .btn:hover{border-color:var(--muted)}
@@ -195,6 +202,7 @@ table.results td.pend{color:var(--muted)}
     <h2>Modelo</h2>
     <select id="model" style="width:100%"></select>
     <p class="hint" id="modeldesc"></p>
+    <div class="thetabox" id="thetabox" hidden></div>
     <div class="row" id="presetrow" hidden><label>Fluido:</label><span id="presets"></span></div>
     <table class="params" id="params">
       <colgroup><col style="width:40px"><col><col style="width:98px"><col style="width:64px"><col style="width:64px"></colgroup>
@@ -431,12 +439,18 @@ async function loadText(name, text){
 /* ---------- parâmetros ---------- */
 function renderModel(){
   const m = S.model; $("modeldesc").textContent = m.description;
+  const ti = m.theta_info || {};
+  $("thetabox").hidden = !Object.keys(ti).length;
+  $("thetabox").innerHTML = Object.entries(ti).map(([n,d]) => {
+    const p = m.params.find(q=>q.name===n) || {label:n};
+    return `<div><b>${esc(p.label)}</b> deste modelo [${esc(d.unit)}]:<br><span class="tdef">${esc(d.def)}</span>` +
+           (d.note ? `<br><span class="tnote">${esc(d.note)}</span>` : "") + `</div>`; }).join("");
   const tb = $("params").tBodies[0]; tb.innerHTML = "";
   for (const p of m.params){
     const tr = document.createElement("tr"); tr.dataset.name = p.name;
     tr.className = p.fit ? "free" : "fixed";
     tr.innerHTML = `<td><input type="checkbox" class="fitchk" ${p.fit?"checked":""} aria-label="ajustar ${p.label}"></td>
-      <td class="name">${p.label}${p.unit?` <small>${p.unit}</small>`:""}</td>
+      <td class="name"${(m.theta_info||{})[p.name]?` title="${esc(m.theta_info[p.name].def)} [${esc(m.theta_info[p.name].unit)}]"`:""}>${p.label}${p.unit?` <small>${p.unit}</small>`:""}${(m.theta_info||{})[p.name]?' <span class="tq">def.</span>':""}</td>
       <td><input class="num val" value="${numStr(p.value)}"></td>
       <td><input class="num lim lo" value="${numStr(p.lo ?? defLim(p.value,-1))}"></td>
       <td><input class="num lim hi" value="${numStr(p.hi ?? defLim(p.value,1))}"></td>`;
@@ -478,7 +492,12 @@ function readParams(){
   if (bad) throw new Error(`valor inválido em "${labelOf(bad)}"`);
   return {vals, free};
 }
+const esc = x => String(x).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const labelOf = n => (S.model.params.find(p=>p.name===n)||{label:n}).label;
+function thetaReminder(n){
+  const d = (S.model.theta_info||{})[n]; if (!d) return "";
+  return `<span class="tnote" style="color:var(--muted)">${esc(labelOf(n))} aqui é ${esc(d.def)} [${esc(d.unit)}].</span>`;
+}
 function setValue(n, v){ const tr=$("params").querySelector(`tr[data-name="${n}"]`); if (tr) tr.querySelector(".val").value = numStr(v); }
 function showResult(res){
   for (const rr of $("params").querySelectorAll("tr.result")) { rr.hidden=true; }
@@ -658,6 +677,12 @@ function exportCSV(){
   for (let i=0;i<w.t.length;i++) s += `${w.t[i]},${w.y[i]},${S.curve[i]},${w.y[i]-S.curve[i]}\n`;
   download(baseName()+"_ajuste.csv", s);
 }
+function thetaText(){
+  const ti = S.model.theta_info || {}; if (!Object.keys(ti).length) return "";
+  let s = `\nDefinição dos θ deste modelo (${S.model.title})\n`;
+  for (const [n,d] of Object.entries(ti)) s += `  ${n} (${labelOf(n)}) [${d.unit}]: ${d.def}\n` + (d.note ? `      ${d.note}\n` : "");
+  return s;
+}
 function exportReport(){
   const {vals} = readParams(), res = S.lastResult;
   let s = `Ajuste de lente térmica\nArquivo: ${S.fileName}\nModelo: ${S.model.title}\nData: ${new Date().toLocaleString("pt-BR")}\n\n`;
@@ -667,6 +692,7 @@ function exportReport(){
     const sig = res&&res.sigma ? res.sigma[p.name] : undefined;
     s += `${p.name} (${p.label}${p.unit?", "+p.unit:""})\t${vals[p.name]}\t${sig!==undefined?sig:""}\t${sig!==undefined?"ajustado":"fixo"}\n`;
   }
+  s += thetaText();
   if (res&&res.extra&&res.extra.corr){ const n=Object.keys(res.sigma); s += `\nCorrelações\n\t${n.join("\t")}\n`;
     res.extra.corr.forEach((r,i)=> s += n[i]+"\t"+r.map(v=>v.toFixed(4)).join("\t")+"\n"); }
   download(baseName()+"_relatorio.txt", s);
@@ -812,7 +838,7 @@ async function startSeries(){
 }
 function fillParSelector(){
   const free = (S.ser.free || []).map(f=>f.name), cur = $("spar").value, opts = [];
-  const lin = new Set(S.model.linear || []);
+  const lin = new Set(S.model.proportional || S.model.linear || []);
   for (const n of free){
     opts.push(`<option value="${n}">${labelOf(n)}</option>`);
     if (lin.has(n)) opts.push(`<option value="${n}/x">${labelOf(n)} / ${xName()}</option>`);
@@ -904,11 +930,13 @@ function drawSeries(){
     if (ratio){
       ser2.push({type:"line", x:[0, xmax*1.05], y:[st.slope0, st.slope0], color:getVar("--fit"), width:1.5, dash:[6,4]});
       txt.push(`<b>${labelOf(name)} / ${xName()}</b> = ${fmt(st.slope0,4)} ± ${fmt(st.slope0_err,2)} (inclinação da reta pela origem).`);
+      txt.push(thetaReminder(name));
       const r = st.ratio || []; if (r.length > 1){ const m = r.reduce((a,b)=>a+b,0)/r.length, sd = Math.sqrt(r.reduce((a,b)=>a+(b-m)**2,0)/(r.length-1));
         txt.push(`Média dos ${r.length} valores: ${fmt(m,4)} ± ${fmt(sd,2)} (desvio-padrão).`); }
     } else {
       ser2.push({type:"line", x:[0, xmax*1.05], y:[0, st.slope0*xmax*1.05], color:getVar("--fit"), width:1.5, dash:[6,4]});
       txt.push(`Reta pela origem: <b>${labelOf(name)} / ${xName()} = ${fmt(st.slope0,4)} ± ${fmt(st.slope0_err,2)}</b>.`);
+      txt.push(thetaReminder(name));
       if (st.line){ const ln = st.line, i0 = Math.abs(ln.intercept) > 2*ln.intercept_err;
         txt.push(`Reta com intercepto: inclinação ${fmt(ln.slope,4)} ± ${fmt(ln.slope_err,2)}, intercepto ${fmt(ln.intercept,3)} ± ${fmt(ln.intercept_err,2)}` +
                  (ln.r2!=null?`, R² = ${ln.r2.toFixed(4)}`:"") + "." + (i0 ? ' <span class="warn">O intercepto difere de zero: a dependência pode não ser linear.</span>' : "")); }
@@ -935,7 +963,7 @@ function seriesBase(){
   return (p.replace(/[_\-\s]+$/,"") || "serie");
 }
 function exportSeriesCSV(){
-  const free = (S.ser.free||[]).map(f=>f.name), lin = new Set(S.model.linear || []);
+  const free = (S.ser.free||[]).map(f=>f.name), lin = new Set(S.model.proportional || S.model.linear || []);
   const head = ["arquivo", shortX()];
   for (const n of free){ head.push(n, "sigma_"+n); if (lin.has(n)) head.push(n+"/x"); }
   head.push("chi2","R2","no_limite");
@@ -963,6 +991,7 @@ function exportSeriesReport(){
   for (const f of S.ser.files.filter(f=>f.use)){ const r = resultFor(f); if (!r) continue;
     if (r.status!=="ok"){ s += `${f.name}\t${f.x??""}\t${r.status}\n`; continue; }
     s += `${f.name}\t${f.x??""}\t` + free.map(n=>`${r.params[n]}\t${(r.sigma||{})[n]??""}`).join("\t") + `\t${r.chi2}\t${r.r2??""}\n`; }
+  s += thetaText();
   s += "\nEstatística da série\n";
   for (const [n, st] of Object.entries(j.stats||{})){
     if (st.kind === "proporcional"){
@@ -1028,7 +1057,13 @@ setInterval(() => fetch("/api/ping").catch(()=>{}), 5000);  /* o aplicativo ence
   S.model = S.models[0]; renderModel();
   const ex = await api("/api/examples");
   $("examples").innerHTML = ex.map(n=>`<button class="btn" style="padding:2px 8px;font-size:12.5px" data-ex="${n}">${n.replace(/\.dat$/,"").replace(/_/g," ")}</button>`).join(" ");
-  for (const b of $("examples").querySelectorAll("button")) b.onclick = async () => { const r = await api("/api/example/"+b.dataset.ex); loadText(r.name, r.text); };
+  for (const b of $("examples").querySelectorAll("button")) b.onclick = async () => {
+    const r = await api("/api/example/"+b.dataset.ex);
+    if (r.model && r.model !== S.model.key){ $("model").value = r.model; S.model = S.models.find(m=>m.key===r.model); renderModel(); }
+    if (r.preset && (S.model.presets||{})[r.preset]) applyPreset(r.preset);
+    for (const [n,v] of Object.entries(r.params||{})) setValue(n, v);
+    await loadText(r.name, r.text);
+  };
   const sex = await api("/api/series-examples");
   $("sexamples").innerHTML = sex.map((d,k)=>`<button class="btn" style="padding:2px 8px;font-size:12.5px" data-k="${k}">${d.name.replace(/^serie_/,"").replace(/_/g," ")}</button>`).join(" ");
   const exLabel = d => "Exemplo: série sintética " + d.name.replace(/^serie_/,"").replace(/_/g," ");
