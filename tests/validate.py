@@ -5,11 +5,9 @@
    O original imprime 6 casas decimais e integra com tolerância relativa
    1e-4/1e-5, então diferenças de até ~1e-5 são esperadas.
 2. Autoconvergência: resultado com quadraturas 2× mais finas.
-3. Se c/libtlcore.so (ou tlcore.dll) existir, compara C e Python.
 
 Uso: python tests/validate.py
 """
-import ctypes
 import sys
 from pathlib import Path
 
@@ -31,22 +29,6 @@ CASES = [
     ("tllam", "tllam_d5e-7_ths4_thf30.dat", dict(d=5e-7, ths=4, thf=30)),
     ("tmhamtl", "tmhamtl_default.dat", dict()),
 ]
-ORDER = {"tllam": "d ths thf m w0 v l df cs cf dens denf ns nf E coefexp dndts nu qpen qpar".split(),
-         "tmhamtl": "d th m w0 v beta nu dndt df of".split()}
-
-
-def load_c():
-    for name in ("libtlcore.so", "libtlcore.dylib", "tlcore.dll"):
-        f = ROOT / "c" / name
-        if f.exists():
-            lib = ctypes.CDLL(str(f))
-            D = ctypes.POINTER(ctypes.c_double)
-            lib.tl_intensity.argtypes = [ctypes.c_int, D, D, ctypes.c_int, D, ctypes.c_double]
-            return lib, D
-    return None, None
-
-
-lib, D = load_c()
 ok = True
 for key, ref, upd in CASES:
     m = MODELS[key]
@@ -57,14 +39,7 @@ for key, ref, upd in CASES:
     I = m.intensity(t, p)
     I2 = m.intensity(t, p, Accuracy().scaled(2))
     d_orig, d_self = np.abs(I - r[:, 1]).max(), np.abs(I - I2).max()
-    line = f"{key:8s} {ref:34s} |novo−original| {d_orig:.1e}   autoconvergência {d_self:.1e}"
-    if lib:
-        pa = np.array([p[k] for k in ORDER[key]], float)
-        out = np.empty_like(t)
-        lib.tl_intensity(0 if key == "tllam" else 1, pa.ctypes.data_as(D), t.ctypes.data_as(D),
-                         len(t), out.ctypes.data_as(D), 1.0)
-        line += f"   |C−Python| {np.abs(out - I).max():.1e}"
-    print(line)
+    print(f"{key:8s} {ref:34s} |novo−original| {d_orig:.1e}   autoconvergência {d_self:.1e}")
     ok &= d_orig < 2e-4 and d_self < 1e-7
 
 # 4. Termo do fluido (TLLAM) contra a inversão numérica (Talbot) da solução exata

@@ -15,11 +15,11 @@ e uma forma de integrar o modelo várias centenas de vezes mais rápida que a ve
 > [Erros corrigidos no código original](#erros-corrigidos-no-código-original). O código
 > original continua disponível em [`legado/`](legado/).
 
-| Avaliação de um transiente | Original (GSL, 2 núcleos) | Novo (C) | Novo (Python/NumPy) |
-|---|---|---|---|
-| TLLAM, 86 pontos | 4,9 s | 0,09 s | 0,02–0,05 s |
-| TM-HAM on/off, 123 pontos, dn/dT ar = 0 | 81 s* | 0,9 s | 0,2 s |
-| TM-HAM on/off com lente no ar (dn/dT ≠ 0) | > 20 min (60 pontos, não terminou) | 1,3 s | 0,5 s |
+| Avaliação de um transiente | Original (C com GSL, 2 núcleos) | TMTL2 (Python/NumPy) |
+|---|---|---|
+| TLLAM, 86 pontos | 4,9 s | 0,02–0,05 s |
+| TM-HAM on/off, 123 pontos, dn/dT ar = 0 | 81 s* | 0,2 s |
+| TM-HAM on/off com lente no ar (dn/dT ≠ 0) | > 20 min (60 pontos, não terminou) | 0,5 s |
 
 \* depois de corrigir o vazamento de memória; sem a correção o processo é morto por falta de memória.
 
@@ -225,12 +225,11 @@ As mudanças:
 ## Validação
 
 `python tests/validate.py` compara com curvas geradas pelos programas originais (em
-`tests/ref/`), checa a autoconvergência e, se a biblioteca C estiver compilada, compara C e
-Python:
+`tests/ref/`) e checa a autoconvergência:
 
-    tllam    |novo−original| 4.9e-07   autoconvergência 2.3e-09   |C−Python| 1.0e-14
-    tllam    |novo−original| 5.0e-07   autoconvergência 2.8e-09   |C−Python| 1.1e-14
-    tmhamtl  |novo−original| 1.5e-04   autoconvergência 4.3e-14   |C−Python| 3.5e-13
+    tllam    |novo−original| 4.9e-07   autoconvergência 2.3e-09
+    tllam    |novo−original| 5.0e-07   autoconvergência 2.8e-09
+    tmhamtl  |novo−original| 1.5e-04   autoconvergência 4.3e-14
 
 Esses casos de referência são em ar, onde o código original está correto. O teste também
 compara o termo do fluido com a inversão numérica da solução de Laplace nos dois regimes
@@ -269,23 +268,6 @@ vem da tolerância do original (QAG com erro relativo 1e-4): recompilando o prog
 com tolerância 1e-8, os pontos de maior discrepância (t = 0,37 s e 1,85 s) passam a coincidir
 com o código novo em todas as 6 casas impressas (0,790799 e 0,998527).
 
-## Programas em C (substitutos diretos)
-
-(Só para os dois modelos do código original, TLLAM e TM-HAM on/off.)
-
-`c/` contém o núcleo em C99 sem GSL (só libm) e dois programas com **os mesmos argumentos e
-a mesma saída** dos originais, para continuar usando os notebooks antigos:
-
-```bash
-cd c && make          # gera tllam_fast, tmhamtl_fast e libtlcore.so
-./tllam_fast datatofit.dat ds ths thf m w0 v l df cs cf dens denf [ns nf E coefexp dndts nu qpen qpar]
-./tmhamtl_fast dados.dat d th m w0 v beta nu dndt df of
-```
-
-No Windows (MinGW/MSYS2): `make EXE=.exe LIB=tlcore.dll`.
-Os 8 parâmetros de material do TLLAM são opcionais (padrão = valores fixos do `tllam.c`),
-o que também cobre a versão do `tllam.exe` que os recebia pela linha de comando.
-
 ## Uso como biblioteca
 
 ```python
@@ -314,7 +296,6 @@ print(res["params"]["d"], res["sigma"]["d"])
     tlfit/server.py     servidor local (biblioteca padrão) para a interface
     tlfit/static/       interface (HTML/JS, sem dependências externas)
     tlfit/examples/     transientes e séries de exemplo
-    c/                  núcleo em C e programas de linha de comando
     tests/              validação contra o código original
 
 Referência do modelo TLLAM: L. C. Malacarne et al., *Appl. Spectrosc.* **65**, 99 (2011),
