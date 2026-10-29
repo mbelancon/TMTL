@@ -222,5 +222,121 @@ for fn in ("tmlam_vidro_sintetico.dat", "tmbam_vidro_sintetico.dat",
           f"({zt:+.1f}σ)  ({r['seconds']:.1f} s)")
     ok &= abs(zd) < 4 and abs(zt) < 4
 
+# 12. TL com fotobranqueamento (Herculano 2013): fase em α contra a eq. 4 (quadratura em ξ),
+#     limites K_T → 0 e ε̄ = 1 (Shen) e ajuste do exemplo sintético
+from tlfit.models import _alpha_grid, _bessel_matrix, g_base_edges  # noqa: E402
+
+mb = MODELS["tlbranq"]
+pb = mb.defaults()
+accb = Accuracy()
+u_b, _ = _alpha_grid(pb["m"], pb["w0"], accb)
+tb = np.array([1e-3, 5e-3, 2e-2, 0.1, 0.5, 2.0])
+Kb = mb.kernel(tb[:, None], (u_b / pb["w0"])[None, :], pb, accb)
+Mb, gb, _ = _bessel_matrix(pb["m"], pb["w0"], accb, pb["v"], (1,) * (len(g_base_edges(pb["v"], accb)) - 1))
+Pb = Kb @ Mb
+tc_b = pb["w0"] ** 2 / (4 * pb["d"])
+
+
+def _eq4(g, tt):
+    f = lambda x: (pb["eb"] + (1 - pb["eb"]) * np.exp(-pb["kt"] * (tt - x))) / (1 + 2 * x / tc_b) \
+        * (1 - np.exp(-2 * pb["m"] * g / (1 + 2 * x / tc_b)))
+    return pb["th"] / tc_b * quad(f, 0, tt, limit=200, epsabs=1e-13, epsrel=1e-12)[0]
+
+
+worst = 0.0
+for i, tt in enumerate(tb):
+    for j in range(0, len(gb), max(1, len(gb) // 12)):
+        ref = _eq4(gb[j], tt)
+        worst = max(worst, abs(Pb[i, j] - ref) / max(abs(ref), 1e-3 * pb["th"]))
+print(f"TL branq fase contra a eq. 4 de Herculano et al. (2013): erro relativo máx {worst:.1e}")
+ok &= worst < 1e-8
+
+sh_p = dict(d=pb["d"], th=0.01, m=pb["m"], w0=pb["w0"], v=pb["v"])
+I_sh = MODELS["tlshen"].intensity(tb, sh_p)
+e_k0 = np.abs(mb.intensity(tb, dict(pb, th=0.01, kt=1e-9)) - I_sh).max() / np.abs(I_sh - 1).max()
+e_e1 = np.abs(mb.intensity(tb, dict(pb, th=0.01, eb=1.0)) - I_sh).max() / np.abs(I_sh - 1).max()
+print(f"limites  K_T→0 {e_k0:.1e}   ε̄=1 {e_e1:.1e} (relativo ao sinal; Shen é de ordem θ)")
+ok &= e_k0 < 2e-3 and e_e1 < 2e-3
+
+txt = (ROOT / "tlfit" / "examples" / "tlbranq_eosina_sintetico.dat").read_text(encoding="utf-8")
+dd, _ = parse_table(txt)
+pp = mb.defaults()
+pp.update(d=1.41e-7, m=35.1, w0=7e-5, v=7.5)
+true_b = dict(th=0.048, kt=2.0, eb=0.27)
+prob = FitProblem(mb, dd[:, 0], dd[:, 1], pp, [make_free("th", -5, 5), make_free("kt", 1e-4, 1e3), make_free("eb", 0, 5)])
+r = run_fit(prob, method="auto", log=lambda s: None)
+zs = {k: (r["params"][k] - true_b[k]) / r["sigma"][k] for k in true_b}
+print("ajuste   tlbranq   " + "  ".join(f"{k} = {r['params'][k]:.5g} ({zs[k]:+.1f}σ)" for k in true_b)
+      + f"  ({r['seconds']:.1f} s)")
+ok &= all(abs(z) < 4 for z in zs.values())
+
+# 13. TM + fluido (Lukasievicz 2012): tabelas de Talbot contra os limites conhecidos
+mf = MODELS["tmfluido"]
+tf = np.linspace(0, 0.3, 120)
+pf = mf.defaults()
+pf.update(pf, thf=0.0)
+ham = MODELS["tmhamtl"]
+ph = ham.defaults()
+for k in ("m", "w0", "v"):
+    ph[k] = pf[k]
+ph["d"], ph["th"] = pf["d"], pf["th"]
+pf0 = dict(pf, cf=1e-9, thf=0.0)   # κ→0: fluido sem condutividade → só a superfície livre
+e_ham = np.abs(mf.intensity(tf, pf0) - ham.intensity(tf, ph)).max() / np.abs(ham.intensity(tf, ph) - 1).max()
+print(f"TM fluido κ→0 contra TM HAM: erro relativo ao sinal {e_ham:.1e}")
+ok &= e_ham < 1e-4
+
+txt = (ROOT / "tlfit" / "examples" / "tmfluido_aco_agua_sintetico.dat").read_text(encoding="utf-8")
+dd, _ = parse_table(txt)
+pp = mf.defaults()
+pp.update(mf.presets["Água"] if "Água" in mf.presets else {})
+pp.update(m=32.8, w0=7.4e-5, v=6.9)
+true_f = dict(d=6.94e-6, th=-0.062, thf=-26.9)
+prob = FitProblem(mf, dd[:, 0], dd[:, 1], pp, [make_free("d", 1e-7, 1e-4, True), make_free("th", -5, 5), make_free("thf", -1e3, 1e3)])
+r = run_fit(prob, method="auto", log=lambda s: None)
+zs = {k: (r["params"][k] - true_f[k]) / r["sigma"][k] for k in true_f}
+print("ajuste   tmfluido  " + "  ".join(f"{k} = {r['params'][k]:.5g} ({zs[k]:+.1f}σ)" for k in true_f)
+      + f"  ({r['seconds']:.1f} s)")
+ok &= all(abs(z) < 4 for z in zs.values())
+
+# 14. TL + lente de população (Silva 2013): forma fechada em z contra quadratura numérica
+from scipy.integrate import quad  # noqa: E402
+from tlfit.models import _pl_unit_phase  # noqa: E402
+
+gg = np.array([0.0, 0.05, 0.3, 1.0, 3.0])
+tt = np.array([[1e-4], [1e-3], [5e-3], [3e-2]])
+worst = 0.0
+for ae, l in [(240.0, 3.79e-3), (2000.0, 3.79e-3), (5.0, 3.79e-3)]:   # 5 → ramo de Gauss–Legendre
+    h, tau = 40.0, 1.7e-3
+    f = _pl_unit_phase(tt, np.exp(-2 * 28.7 * gg), ae, l, h, tau)
+    for i, t1 in enumerate(tt[:, 0]):
+        for j, u in enumerate(np.exp(-2 * 28.7 * gg)):
+            ref = quad(lambda z: u * np.exp(-ae * z) / (1 / tau + h * u * np.exp(-ae * z))
+                       * (1 - np.exp(-t1 * (1 / tau + h * u * np.exp(-ae * z)))), 0, l,
+                       epsabs=1e-14, epsrel=1e-12)[0]
+            worst = max(worst, abs(f[i, j] - ref) / np.abs(f).max())
+print(f"TL população: Φ_PL fechada contra quadratura em z: erro relativo máx {worst:.1e}")
+ok &= worst < 1e-10
+
+mp = MODELS["tlpop"]
+pq = mp.defaults()
+tq = np.linspace(0, 0.05, 100)
+sh = dict(d=pq["d"], th=0.01, m=pq["m"], w0=pq["w0"], v=pq["v"])
+e_sh = np.abs(mp.intensity(tq, dict(pq, th=0.01, tpl=0.0)) - MODELS["tlshen"].intensity(tq, sh)).max()
+print(f"θ_PL = 0 contra TL de Shen: diferença máx {e_sh:.1e}")
+ok &= e_sh < 1e-6
+
+txt = (ROOT / "tlfit" / "examples" / "tlpop_zblan_sintetico.dat").read_text(encoding="utf-8")
+dd, _ = parse_table(txt)
+pp = mp.defaults()
+true_p = dict(d=2.6e-7, th=0.15, tpl=-1.2e4, tau=1.7e-3)
+q = dict(pp, d=1e-7, th=0.05, tpl=-3000.0, tau=5e-4)
+prob = FitProblem(mp, dd[:, 0], dd[:, 1], q, [make_free("d", 1e-8, 1e-5, True), make_free("th", -1, 1),
+                                               make_free("tpl", -1e5, 1e5), make_free("tau", 1e-4, 1e-1, True)])
+r = run_fit(prob, method="auto", log=lambda s: None)
+zs = {k: (r["params"][k] - true_p[k]) / r["sigma"][k] for k in true_p}
+print("ajuste   tlpop     " + "  ".join(f"{k} = {r['params'][k]:.5g} ({zs[k]:+.1f}σ)" for k in true_p)
+      + f"  ({r['seconds']:.1f} s)")
+ok &= all(abs(z) < 4 for z in zs.values())
+
 print("OK" if ok else "FALHOU")
 sys.exit(0 if ok else 1)

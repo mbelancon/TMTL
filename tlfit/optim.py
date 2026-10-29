@@ -360,6 +360,26 @@ def inner_fit(prob: FitProblem, z_nl, lin, nl, acc, seed, stop=None):
     return chi, z, f
 
 
+SWEEP_POINTS = 200
+
+
+def _sweep_problem(prob: FitProblem):
+    """Para transientes longos a varredura usa ~200 pontos igualmente espaçados em índice
+    (o ajuste final usa todos): o custo da grade cai na proporção. As avaliações são
+    contadas no problema original; a curva só é guardada nas etapas com todos os pontos."""
+    n = len(prob.t)
+    if n <= SWEEP_POINTS * 1.25:
+        return prob
+    idx = np.unique(np.round(np.linspace(0, n - 1, SWEEP_POINTS)).astype(int))
+    sub = FitProblem(prob.model, prob.t[idx], prob.y[idx], prob.params, prob.free, prob.acc)
+    factor = n / len(idx)
+
+    def record(z, chi, f, n=1):
+        prob.record(z, chi * factor, None, n)
+    sub.record = record
+    return sub
+
+
 def two_level(prob: FitProblem, callback=None, stop=None, log=print, workers=None):
     """Varredura nos não lineares + θ por dentro; devolve candidatos (z, χ²) ordenados."""
     lin, nl = split_free(prob)
@@ -376,8 +396,9 @@ def two_level(prob: FitProblem, callback=None, stop=None, log=print, workers=Non
     workers = workers or min(N, os.cpu_count() or 1)
     pool = ThreadPoolExecutor(max_workers=workers)
     lock = threading.Lock()
+    sweep = _sweep_problem(prob)
     try:
-        futs = {pool.submit(inner_fit, prob, Znl[k], lin, nl, acc, 1000 + k, stop): k
+        futs = {pool.submit(inner_fit, sweep, Znl[k], lin, nl, acc, 1000 + k, stop): k
                 for k in range(N)}
         from concurrent.futures import as_completed
         for fut in as_completed(futs):
@@ -393,6 +414,9 @@ def two_level(prob: FitProblem, callback=None, stop=None, log=print, workers=Non
                                   gbest=prob.best_z, gchi=prob.best_chi))
     finally:
         pool.shutdown(wait=False, cancel_futures=True)
+    if sweep is not prob:
+        # χ² da varredura é estimado em poucos pontos: não vale como "melhor" do ajuste completo
+        prob.best_chi, prob.best_z, prob.best_curve = np.inf, None, None
     mins = _local_minima(Znl, F, len(nl))
     best = F[mins[0]] if mins else np.inf
     cand = [i for i in mins if F[i] <= 3 * best][:3]
