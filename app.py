@@ -24,7 +24,7 @@ os.environ.setdefault("MKL_NUM_THREADS", "1")
 
 from tlfit import server  # noqa: E402
 
-TITLE = "TMTL2 — Ajuste de lente térmica"
+TITLE = "TMTL2 — Ajuste de TL e TM"
 IDLE_EXIT = 30  # s sem ping da página → encerra (modo navegador)
 
 

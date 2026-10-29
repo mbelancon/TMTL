@@ -338,5 +338,106 @@ print("ajuste   tlpop     " + "  ".join(f"{k} = {r['params'][k]:.5g} ({zs[k]:+.1
       + f"  ({r['seconds']:.1f} s)")
 ok &= all(abs(z) < 4 for z in zs.values())
 
+# 15. Flizikowski et al., Opt. Express 28, 7116 (2020): eqs. 3-10 implementadas à parte
+#     (G da eq. 4, u_z da eq. 6, lente no ar da eq. 8, sinal da eq. 10) contra o TM + fluido,
+#     nos três metais da Tabela 1 e na geometria da fig. 1. Laser ligado e, depois de t > ξ,
+#     desligado por superposição T_on(t) − T_on(t − ξ) (exata para o problema linear).
+from scipy.special import erfcx as _erfcx, dawsn as _dawsn, j0 as _j0  # noqa: E402
+from scipy.special import erf as _erf  # noqa: E402
+from tlfit.models import tanh_sinh as _tanh_sinh  # noqa: E402
+
+_ART = dict(lam=632.8e-9, we=646e-6, wp=1584e-6, zc=0.0050, z1=0.261, Df=21.9e-6, kf=0.026,
+            dndT=-1e-6, Pe=1.0)
+_ART_MAT = {   # R, k (W/m/K), ρc (J/m³/K), ν, α_T (1/K)
+    "cobre": (0.58, 355.0, 3.4e6, 0.31, 17.3e-6),
+    "bronze": (0.69, 55.0, 2.9e6, 0.32, 18.0e-6),
+    "inox": (0.60, 15.2, 4.2e6, 0.29, 17.3e-6),
+}
+
+
+def _art_G(a, u, ks, Ds, kf, Df):
+    """Eq. 4 do artigo (erfi·exp reescrito com a função de Dawson quando D − κ < 0)."""
+    den = ks ** 2 * Df - kf ** 2 * Ds
+    kap = (ks ** 2 - kf ** 2) * Ds * Df / den
+
+    def fz(X):
+        t1 = np.sqrt(X) * _erf(a * np.sqrt(X * u))
+        if X > kap:
+            t2 = np.exp(-a * a * kap * u) * np.sqrt(X - kap) * _erf(a * np.sqrt((X - kap) * u))
+        else:
+            t2 = -np.sqrt(kap - X) * np.exp(-a * a * X * u) * (2 / np.sqrt(np.pi)) * _dawsn(a * np.sqrt((kap - X) * u))
+        return t1 - t2
+
+    return (ks * np.sqrt(Df) * fz(Ds) - kf * np.sqrt(Ds) * fz(Df)) / (a * kap * den)
+
+
+def _art_signal(mat, times, xi=None):
+    P = _ART
+    lam, we, wp, Df, kf, dn, Pe = (P[k] for k in ("lam", "we", "wp", "Df", "kf", "dndT", "Pe"))
+    V = P["z1"] / P["zc"]
+    R, ks, rc, nu, aT = mat
+    Ds = ks / rc
+    th_tm = -Pe * (1 - R) * (1 + nu) * aT / (ks * lam)            # texto sob a eq. 6
+    Q0 = 2 * Pe * (1 - R) / (np.pi * rc * we ** 2)
+    gx, gw = np.polynomial.legendre.leggauss(8)
+
+    def panels(lo, hi, n):
+        e = np.linspace(lo, hi, n + 1)
+        x = np.concatenate([0.5 * (b - a_) * (gx + 1) + a_ for a_, b in zip(e[:-1], e[1:])])
+        w = np.concatenate([0.5 * (b - a_) * gw for a_, b in zip(e[:-1], e[1:])])
+        return x, w
+
+    a, aw = panels(0.0, np.sqrt(8 * 42) / we, 420)
+    g, gwt = panels(0.0, 15.0, 150)
+    M = _j0(np.outer(a, wp * np.sqrt(g))) - 1.0
+    A = a[:, None]
+    gauss = np.exp(-we ** 2 * a ** 2 / 8)
+    xs, ws = _tanh_sinh(100)
+
+    def fases(t):
+        tau, wt = t * xs[None, :], t * ws[None, :]
+        Gt = _art_G(A, t - tau, ks, Ds, kf, Df)
+        x = A * np.sqrt(Ds * tau)
+        B = np.exp(-x ** 2) * (1 / (A * np.sqrt(np.pi * tau)) - np.sqrt(Ds) * _erfcx(x))
+        Kz = th_tm * (lam * ks * Ds * np.sqrt(Df) / np.pi) * a ** 2 * gauss * (B * Gt * wt).sum(1)
+        Hf = np.sqrt(Df / (np.pi * tau)) * np.exp(-Df * A ** 2 * tau)
+        Af = ks * Q0 * (we ** 2 / 4) * gauss / np.sqrt(Ds / Df) * (Gt * Hf * wt).sum(1)
+        return (4 * np.pi / lam) * (Kz * aw) @ M, (4 * np.pi / lam) * dn * ((Af * a * aw) @ M)
+
+    out = []
+    for t in times:
+        ps, pf = fases(t)
+        if xi is not None and t > xi:
+            ps2, pf2 = fases(t - xi)
+            ps, pf = ps - ps2, pf - pf2
+        amp = np.sum(np.exp(-g) * np.exp(-1j * (V * g + ps + pf)) * gwt)
+        out.append(abs(amp) ** 2 * (1 + V * V))
+    return np.array(out), th_tm
+
+
+_t_on = np.array([0.005, 0.02, 0.05, 0.1, 0.2, 0.4, 0.6, 0.9])
+_t_off = np.array([0.05, 0.15, 0.2, 0.21, 0.25, 0.3, 0.4, 0.6, 0.9])
+_XI = 0.2
+mfl, mhm = MODELS["tmfluido"], MODELS["tmhamtl"]
+for _nome, _mat in _ART_MAT.items():
+    _R, _ks, _rc, _nu, _aT = _mat
+    _Ds = _ks / _rc
+    _I_on, _th = _art_signal(_mat, _t_on)
+    _I_off, _ = _art_signal(_mat, _t_off, xi=_XI)
+    _p = mfl.defaults()
+    _p.update(d=_Ds, th=_th, thf=2 * _ART["Pe"] * (1 - _R) * _ART["dndT"] / _ART["lam"], df=_ART["Df"],
+              m=(_ART["wp"] / _ART["we"]) ** 2, w0=_ART["we"], v=_ART["z1"] / _ART["zc"], cs=1.0, dens=_rc,
+              cf=1005.0, denf=_ART["kf"] / (_ART["Df"] * 1005.0), of=0.0, scale=1.0)
+    _e_on = np.abs(mfl.intensity(_t_on, _p) - _I_on).max() / np.abs(_I_on - 1).max()
+    _e_off = np.abs(mfl.intensity(_t_off, dict(_p, of=_XI)) - _I_off).max() / np.abs(_I_off - 1).max()
+    # TM-HAM on/off do original: superfície livre, sem troca de calor com o ar (só informativo)
+    _q = mhm.defaults()
+    _q.update(d=_Ds, th=_th, m=_p["m"], w0=_p["w0"], v=_p["v"], beta=_aT, nu=_nu, dndt=_ART["dndT"],
+              df=_ART["Df"], of=_XI, scale=1.0)
+    _e_ham = np.abs(mhm.intensity(_t_off, _q) - _I_off).max() / np.abs(_I_off - 1).max()
+    print(f"artigo Flizikowski 2020, {_nome:6s}: TM+TM-Fluid ligado {_e_on:.1e}, desligado {_e_off:.1e}"
+          f"   (TM+TM-Fluid HAM on/off, aproximação sem retorno do fluido: {_e_ham:.1e}; relativo ao sinal)")
+    ok &= _e_on < 1e-4 and _e_off < 1e-4
+
 print("OK" if ok else "FALHOU")
 sys.exit(0 if ok else 1)

@@ -1,6 +1,6 @@
 # Gera a versão portátil para Windows (Python embutido + numpy + scipy + programa).
 # - Em todo push/PR: o zip fica em "Actions" → execução → "Artifacts".
-# - Ao criar uma tag v* (ex.: git tag v2.1.0 && git push --tags): publica uma Release
+# - Ao criar uma tag v* (ex.: git tag v2.2.1 && git push --tags): publica uma Release
 #   com o zip, que os colaboradores baixam sem precisar instalar Python.
 name: build
 

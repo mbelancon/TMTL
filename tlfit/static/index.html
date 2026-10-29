@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ajuste de lente térmica</title>
+<title>Ajuste de TL e TM</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Fraunces:opsz,wght@9..144,600&display=swap" rel="stylesheet">
 <style>
@@ -142,8 +142,8 @@ table.results td.pend{color:var(--muted)}
 <body>
 <div class="app">
 <aside>
-  <h1>Ajuste de lente térmica</h1>
-  <p class="sub">Transientes de lente e espelho térmico resolvidos no tempo</p>
+  <h1>Ajuste de TL e TM</h1>
+  <p class="sub">Transientes de lente térmica (TL) e espelho térmico (TM) resolvidos no tempo</p>
   <div class="modes" role="group" aria-label="Modo">
     <button id="modeOne" class="on" aria-pressed="true">Um transiente</button>
     <button id="modeSer" aria-pressed="false">Série</button>
@@ -685,7 +685,7 @@ function thetaText(){
 }
 function exportReport(){
   const {vals} = readParams(), res = S.lastResult;
-  let s = `Ajuste de lente térmica\nArquivo: ${S.fileName}\nModelo: ${S.model.title}\nData: ${new Date().toLocaleString("pt-BR")}\n\n`;
+  let s = `Ajuste de TL e TM\nArquivo: ${S.fileName}\nModelo: ${S.model.title}\nData: ${new Date().toLocaleString("pt-BR")}\n\n`;
   s += `chi2 = ${res?res.chi2:"—"}\n`; if (res&&res.extra) s += `chi2 reduzido = ${res.extra.reduced_chi2} (${res.extra.dof} g.l.)\n`;
   s += `\nParâmetro\tValor\tIncerteza (1σ)\tStatus\n`;
   for (const p of S.model.params){

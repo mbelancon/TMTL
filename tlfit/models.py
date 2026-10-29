@@ -387,7 +387,7 @@ class TLLAM(Model):
     def __init__(self):
         super().__init__(
             key="tllam",
-            title="TL amostra + fluido (TLLAM)",
+            title="TL+TL-Fluid (TLLAM)",
             description="Lente térmica com acoplamento térmico amostra–fluido "
                         "(Malacarne et al., Appl. Spectrosc. 65, 99, 2011). "
                         "Equivalente a tllam.c, com o termo do fluido corrigido.",
@@ -481,7 +481,7 @@ class TLLAM(Model):
 
 
 # ---------------------------------------------------------------------------
-# TM-HAM on/off + TL no ar — equivalente a tmhamtl-onoff.c
+# TM+TM-Fluid, HAM on/off (aproximação, sem retorno do fluido) — equivalente a tmhamtl-onoff.c
 # ---------------------------------------------------------------------------
 
 
@@ -489,17 +489,23 @@ class TMHAMTL(Model):
     theta_info = {
         "th": {"def": "θ_HAM = θ_TM / A_e = −P_e α_T (1+ν) φ / (λ_p k)", "unit": "adimensional",
                "note": "Não contém A_e (amostra opaca). Para comparar com LAM, BAM e amostra finita, "
-                       "que dão θ_TM em 1/m: θ_TM = θ_HAM·A_e. Amostra que dilata (α_T > 0): θ < 0."},
+                       "que dão θ_TM em 1/m: θ_TM = θ_HAM·A_e. Amostra que dilata (α_T > 0): θ < 0. "
+                       "Com P_e incidente e refletividade R, o θ_TM de Flizikowski et al. (2020) é (1−R)·θ_HAM."},
     }
     linear = ("th",)     # a lente no ar também é proporcional a θ (pref ∝ th)
 
     def __init__(self):
         super().__init__(
             key="tmhamtl",
-            title="Espelho térmico HAM on/off + TL no ar",
+            title="TM+TM-Fluid, HAM on/off (aproximação: sem retorno do fluido)",
             description="Espelho térmico (alta absorção) com excitação desligada em "
-                        "t = t_off, mais lente térmica no ar (ativa se dn/dT ar ≠ 0). "
-                        "Equivalente a tmhamtl-onoff.c.",
+                        "t = t_off, mais a lente térmica do fluido (ar), ativa se dn/dT ≠ 0. "
+                        "Equivalente a tmhamtl-onoff.c: aproximação em que a superfície da amostra é "
+                        "livre; o fluido recebe calor e forma a TL, mas não esfria a amostra de volta. "
+                        "Para o acoplamento completo (Flizikowski et al., Opt. Express 28, 7116, 2020) "
+                        "use TM+TM-Fluid, HAM (acoplamento completo): nos três metais do artigo a "
+                        "diferença é de 1e-4 a 1e-3 do sinal com o laser ligado e chega a ~1% logo "
+                        "após desligar (inox em ar).",
             params=[
                 Param("d", 3.46e-6, "D amostra", "m²/s", True, 1e-8, 1e-4),
                 Param("th", -0.57, "θ HAM", "adim.", True, -5, 5),
@@ -717,7 +723,7 @@ class TMLAM(_TMBase):
     def __init__(self):
         super().__init__(
             key="tmlam",
-            title="Espelho térmico LAM (baixa absorção)",
+            title="TM LAM (baixa absorção)",
             description="Espelho térmico para amostra semi-infinita com fonte uniforme "
                         "em z (A_e·espessura ≪ 1). Sato et al., J. Appl. Phys. 104, "
                         "053520 (2008), eq. 32. θ_TM = −P_e A_e α_T(1+ν)φ/(λ_p k), em 1/m.",
@@ -735,7 +741,7 @@ class TMFinito(_TMBase):
     def __init__(self):
         super().__init__(
             key="tmfinito",
-            title="Espelho térmico LAM, amostra finita",
+            title="TM LAM, amostra finita",
             description="Espelho térmico de baixa absorção em amostra de espessura l, "
                         "com as duas faces livres. Astrath et al., J. Opt. Soc. Am. B 28, "
                         "1735 (2011), eq. 10. Tende ao LAM semi-infinito para l grande.",
@@ -754,7 +760,7 @@ class TMBAM(_TMBase):
     def __init__(self):
         super().__init__(
             key="tmbam",
-            title="Espelho térmico BAM (lei de Beer)",
+            title="TM BAM (lei de Beer)",
             description="Espelho térmico com absorção pela lei de Beer, válido para "
                         "qualquer A_e (amostra semi-infinita). Sato et al., J. Appl. Phys. "
                         "104, 053520 (2008), eq. 33–34. Tende ao LAM (A_e → 0) e ao HAM "
@@ -791,7 +797,7 @@ class TLShen(Model):
     def __init__(self):
         super().__init__(
             key="tlshen",
-            title="Lente térmica de Shen (clássico)",
+            title="TL de Shen (clássico)",
             description="Expressão fechada do modelo aberrante de Shen para lente "
                         "térmica no modo descasado (amostra fina, baixa absorção, θ "
                         "pequeno). t_c = w0e²/(4D). Baesso, Shen & Snook, J. Appl. Phys. "
@@ -953,22 +959,26 @@ def _tm_g(kind, tau, kappa, rr):
 class TMFluido(Model):
     theta_info = {
         "th": {"def": "h_TM = θ_HAM = −P_e α_T (1+ν) φ / (λ_p k_s)", "unit": "adimensional",
-               "note": "Mesmo θ do TM-HAM (amostra opaca): não contém A_e. Amostra que dilata: h_TM < 0."},
+               "note": "Mesmo θ do TM-HAM (amostra opaca): não contém A_e. Amostra que dilata: h_TM < 0. "
+                       "Com P_e incidente e refletividade R, o θ_TM de Flizikowski et al. (2020) é (1−R)·h_TM."},
         "thf": {"def": "h_f = 2 P_e φ (∂n/∂T)_f / λ_p", "unit": "W/(K·m)",
                 "note": "Lente térmica do fluido (dois passes: antes e depois da reflexão). "
-                        "Com k_s conhecido, h_f/P_e dá (∂n/∂T)_f: h_f = 2 P_e φ (∂n/∂T)_f/λ_p."},
+                        "Com k_s conhecido, h_f/P_e dá (∂n/∂T)_f: h_f = 2 P_e φ (∂n/∂T)_f/λ_p. "
+                        "P_e é a potência absorvida; com P_e incidente use P_e(1−R)."},
     }
     linear = ("th", "thf")
 
     def __init__(self):
         super().__init__(
             key="tmfluido",
-            title="Espelho térmico + lente do fluido (acoplamento completo)",
+            title="TM+TM-Fluid, HAM (acoplamento completo, Flizikowski 2020)",
             description="Espelho térmico de amostra opaca e lente térmica do fluido não absorvente "
                         "em contato, com troca de calor amostra–fluido (sem a restrição k_f√D ≪ k√D_f). "
                         "Lukasievicz et al., Appl. Spectrosc. 66, 1461 (2012), eqs. 20–22. "
                         "k_s = D_s ρ_s c_s e k_f = D_f ρ_f c_f: fixe ρ e c e ajuste as difusividades. "
-                        "Para ar, o fluido quase não muda a amostra; em água, sim.",
+                        "Para ar, o fluido quase não muda a amostra; em água, sim. "
+                        "É o modelo completo de Flizikowski et al., Opt. Express 28, 7116 (2020), eqs. 3–10; "
+                        "o TM+TM-Fluid, HAM on/off (aproximação) ignora o retorno do fluido sobre a amostra.",
             presets={
                 "Ar": {"values": dict(df=2.19e-5, cf=1005, denf=1.18),
                        "bounds": dict(thf=[-1e3, 1e3], df=[1e-6, 1e-3])},
@@ -1080,7 +1090,7 @@ class TLPopulacao(Model):
     def __init__(self):
         super().__init__(
             key="tlpop",
-            title="TL térmica + lente de população (Silva 2013)",
+            title="TL + lente de população (Silva 2013)",
             description="Lente térmica mais lente de população do estado excitado (vida τ, taxa de "
                         "excitação h = I0(σ_abs+σ_se)/E no centro, absorção A_e, espessura l). "
                         "Silva et al., Appl. Phys. Lett. 102, 141910 (2013), eqs. 1–3. "
@@ -1112,5 +1122,6 @@ class TLPopulacao(Model):
         return ph[:, 1:] - ph[:, :1]
 
 
-MODELS = {m.key: m for m in (TLLAM(), TMHAMTL(), TMLAM(), TMFinito(), TMBAM(), TLShen(), TLFotobranq(),
-                             TMFluido(), TLPopulacao())}
+# Ordem na interface: primeiro os modelos de TL, depois os de TM (o primeiro é o padrão ao abrir).
+MODELS = {m.key: m for m in (TLLAM(), TLShen(), TLFotobranq(), TLPopulacao(),
+                             TMLAM(), TMFinito(), TMBAM(), TMHAMTL(), TMFluido())}
