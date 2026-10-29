@@ -229,29 +229,6 @@ As mudanças:
    A autoconvergência (resolução 2×) fica em ~1e-9 ou melhor.
 5. Formas estáveis: `(cosh x − 1)/(x + sinh x)` sem overflow, `expm1` em `1 − e^{−x}`.
 
-### Erros corrigidos no código original
-
-* **TLLAM, termo do fluido — sinal trocado no ramo com a função de Dawson** (`argfasear`,
-  ramos `temp0 > d` e `temp0 > df`). Com e = k/√D a efusividade térmica, a constante da
-  fórmula é `temp0 = (k² − k_f²)/(e_s² − e_f²)`, e o ramo de Dawson é usado quando
-  **(e_s − e_f)(D − D_f) > 0**, isto é, quando o mesmo meio tem a maior efusividade e a maior
-  difusividade. Exemplos afetados: vidro em água com D acima de ~4,6e-7 m²/s, polímeros
-  (PMMA) em água, amostras de difusividade maior que a do ar (silício, metais) em ar.
-  **Vidros e cristais comuns em ar não são afetados** (D < D_ar). A correção sai da
-  continuação analítica do ramo erf (erf(iy)/i = erfi(y)) e foi conferida contra a inversão
-  numérica (Talbot) da solução exata no espaço de Laplace, em 200 casos aleatórios nos dois
-  regimes (erro < 1e-7). No exemplo da amostra em água, o χ² do melhor ajuste cai de 4,3e-5
-  (fórmula original) para 9,1e-6.
-* TLLAM, termo do fluido — **overflow** de `exp(−temp0·α²t)` quando `temp0 < 0` (amostra
-  com efusividade pouco menor que a do fluido). Os termos que crescem se cancelam
-  exatamente entre si; a versão nova usa essa identidade com `erfcx` e não estoura.
-* `chi` era usado sem inicialização (`reduction(+:chi)` partindo de lixo de memória).
-* `tmhamtl-onoff.c`: com `dndt == 0` o workspace da GSL em `fasear` era alocado e nunca
-  liberado — uma vez por avaliação do integrando — e o processo esgotava a memória.
-* Workspaces da GSL eram alocados/liberados dentro dos integrandos (milhões de vezes).
-* Com o manipulador de erro padrão da GSL, uma falha de arredondamento do QAG abortava o
-  programa no meio do ajuste.
-
 ## Validação
 
 `python tests/validate.py` compara com curvas geradas pelos programas originais (em
