@@ -799,4 +799,64 @@ class TLShen(Model):
         return out * p.get("scale", 1.0)
 
 
-MODELS = {m.key: m for m in (TLLAM(), TMHAMTL(), TMLAM(), TMFinito(), TMBAM(), TLShen())}
+# ---------------------------------------------------------------------------
+# Lente térmica com fotobranqueamento — Herculano et al., J. Phys. Chem. B 117, 1932 (2013)
+#   β(t) = β [(1−ε̄) e^{−K_T t} + ε̄]  (absorção que decai de β a ε̄·β com taxa K_T)
+#   Φ(g,t) = θ/t_c ∫₀ᵗ [ε̄ + (1−ε̄) e^{−K_T (t−ξ)}] (1+2ξ/t_c)⁻¹ [1 − e^{−2mg/(1+2ξ/t_c)}] dξ
+# Em espaço de Hankel o mesmo resultado é  Φ = ∫ K(α,t)[J0(α w0 √(m g)) − 1] dα  com
+#   K = −θ e^{−α²w²/8} F(α,t)/α,
+#   F = ε̄ (1 − e^{−bt}) + (1−ε̄) b (e^{−bt} − e^{−K_T t})/(K_T − b),   b = D α²
+# (convolução de β(t) com a resposta térmica; K_T → 0 ou ε̄ = 1 dão a TL clássica de Shen).
+# ---------------------------------------------------------------------------
+
+
+def _phi1(z):
+    """(1 − e^{−z})/z, estável em z → 0."""
+    z = np.abs(z)
+    small = z < 1e-8
+    zs = np.where(small, 1.0, z)
+    return np.where(small, 1.0 - 0.5 * z, -np.expm1(-zs) / zs)
+
+
+class TLFotobranq(Model):
+    theta_info = {
+        "th": {"def": "θ = −P_e β L φ (dn/dT) / (k λ_p),  β = absorção em t = 0 (antes de branquear)",
+               "unit": "rad",
+               "note": "Mesmo θ da TL de Shen, mas com o β inicial: o sinal em t longo corresponde a ε̄·θ. "
+                       "dn/dT < 0 (água): θ > 0 e o sinal cai. Na série, θ ∝ P_e. "
+                       "K_T [1/s] = K_m + K_pb P_e (K_m: difusão de massa; K_pb: fotobranqueamento) "
+                       "e ε̄ = ε_produtos/ε_reagentes — a reta de K_T × P_e aparece na série."},
+    }
+    linear = ("th",)
+
+    def __init__(self):
+        super().__init__(
+            key="tlbranq",
+            title="TL com fotobranqueamento (Herculano 2013)",
+            description="Lente térmica de líquido com absorção que decai por reação fotoquímica "
+                        "(pseudo-primeira ordem, taxa K_T) até ε̄·β. Ajusta θ, K_T e ε̄; fixe D com uma "
+                        "medida do solvente puro (K_T = 0). Herculano et al., J. Phys. Chem. B 117, "
+                        "1932 (2013), eqs. 3–6.",
+            params=[
+                Param("d", 1.41e-7, "D amostra", "m²/s", False, 1e-9, 1e-4),
+                Param("th", 0.05, "θ", "rad", True, -5, 5),
+                Param("kt", 2.0, "K_T", "1/s", True, 1e-4, 1e3),
+                Param("eb", 0.3, "ε̄", "", True, 0, 5),
+                Param("m", 35.1, "m", ""),
+                Param("w0", 70e-6, "w0e", "m"),
+                Param("v", 7.5, "V", ""),
+                Param("scale", 1.0, "I0 (escala)", "", False, 0.8, 1.2),
+            ],
+        )
+
+    def kernel(self, t, a, p, acc):
+        b = p["d"] * a * a
+        k, eb = p["kt"], p["eb"]
+        bt = b * t
+        # (e^{−bt} − e^{−kt})/(k − b) = t e^{−min(k,b)t} (1 − e^{−z})/z, z = |k − b| t
+        mix = t * np.exp(-np.minimum(k, b) * t) * _phi1((k - b) * t)
+        F = eb * (-np.expm1(-bt)) + (1 - eb) * b * mix
+        return -p["th"] * np.exp(-(a * p["w0"]) ** 2 / 8) * F / a
+
+
+MODELS = {m.key: m for m in (TLLAM(), TMHAMTL(), TMLAM(), TMFinito(), TMBAM(), TLShen(), TLFotobranq())}

@@ -222,5 +222,53 @@ for fn in ("tmlam_vidro_sintetico.dat", "tmbam_vidro_sintetico.dat",
           f"({zt:+.1f}σ)  ({r['seconds']:.1f} s)")
     ok &= abs(zd) < 4 and abs(zt) < 4
 
+# 12. TL com fotobranqueamento (Herculano 2013): fase em α contra a eq. 4 (quadratura em ξ),
+#     limites K_T → 0 e ε̄ = 1 (Shen) e ajuste do exemplo sintético
+from tlfit.models import _alpha_grid, _bessel_matrix, g_base_edges  # noqa: E402
+
+mb = MODELS["tlbranq"]
+pb = mb.defaults()
+accb = Accuracy()
+u_b, _ = _alpha_grid(pb["m"], pb["w0"], accb)
+tb = np.array([1e-3, 5e-3, 2e-2, 0.1, 0.5, 2.0])
+Kb = mb.kernel(tb[:, None], (u_b / pb["w0"])[None, :], pb, accb)
+Mb, gb, _ = _bessel_matrix(pb["m"], pb["w0"], accb, pb["v"], (1,) * (len(g_base_edges(pb["v"], accb)) - 1))
+Pb = Kb @ Mb
+tc_b = pb["w0"] ** 2 / (4 * pb["d"])
+
+
+def _eq4(g, tt):
+    f = lambda x: (pb["eb"] + (1 - pb["eb"]) * np.exp(-pb["kt"] * (tt - x))) / (1 + 2 * x / tc_b) \
+        * (1 - np.exp(-2 * pb["m"] * g / (1 + 2 * x / tc_b)))
+    return pb["th"] / tc_b * quad(f, 0, tt, limit=200, epsabs=1e-13, epsrel=1e-12)[0]
+
+
+worst = 0.0
+for i, tt in enumerate(tb):
+    for j in range(0, len(gb), max(1, len(gb) // 12)):
+        ref = _eq4(gb[j], tt)
+        worst = max(worst, abs(Pb[i, j] - ref) / max(abs(ref), 1e-3 * pb["th"]))
+print(f"TL branq fase contra a eq. 4 de Herculano et al. (2013): erro relativo máx {worst:.1e}")
+ok &= worst < 1e-8
+
+sh_p = dict(d=pb["d"], th=0.01, m=pb["m"], w0=pb["w0"], v=pb["v"])
+I_sh = MODELS["tlshen"].intensity(tb, sh_p)
+e_k0 = np.abs(mb.intensity(tb, dict(pb, th=0.01, kt=1e-9)) - I_sh).max() / np.abs(I_sh - 1).max()
+e_e1 = np.abs(mb.intensity(tb, dict(pb, th=0.01, eb=1.0)) - I_sh).max() / np.abs(I_sh - 1).max()
+print(f"limites  K_T→0 {e_k0:.1e}   ε̄=1 {e_e1:.1e} (relativo ao sinal; Shen é de ordem θ)")
+ok &= e_k0 < 2e-3 and e_e1 < 2e-3
+
+txt = (ROOT / "tlfit" / "examples" / "tlbranq_eosina_sintetico.dat").read_text(encoding="utf-8")
+dd, _ = parse_table(txt)
+pp = mb.defaults()
+pp.update(d=1.41e-7, m=35.1, w0=7e-5, v=7.5)
+true_b = dict(th=0.048, kt=2.0, eb=0.27)
+prob = FitProblem(mb, dd[:, 0], dd[:, 1], pp, [make_free("th", -5, 5), make_free("kt", 1e-4, 1e3), make_free("eb", 0, 5)])
+r = run_fit(prob, method="auto", log=lambda s: None)
+zs = {k: (r["params"][k] - true_b[k]) / r["sigma"][k] for k in true_b}
+print("ajuste   tlbranq   " + "  ".join(f"{k} = {r['params'][k]:.5g} ({zs[k]:+.1f}σ)" for k in true_b)
+      + f"  ({r['seconds']:.1f} s)")
+ok &= all(abs(z) < 4 for z in zs.values())
+
 print("OK" if ok else "FALHOU")
 sys.exit(0 if ok else 1)
