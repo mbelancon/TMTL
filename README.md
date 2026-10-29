@@ -357,17 +357,35 @@ print(res["params"]["d"], res["sigma"]["d"])
 
 ## Referências
 
-* G. A. S. Flizikowski, O. A. Capeloto, V. G. Camargo, B. Anghinoni, M. L. Baesso,
-  L. C. Malacarne, M. P. Belançon, T. Požar e N. G. C. Astrath, "Laser induced thermoelastic
-  surface displacement in solids detected simultaneously by photothermal mirror and
-  interferometry", *Opt. Express* **28**, 7116 (2020), doi:10.1364/OE.386344. Espelho térmico
-  com excitação ligada/desligada e lente térmica no ar, com acoplamento de calor
-  amostra–fluido (eqs. 3–10), em cobre, bronze e inox. Reproduzido em `tests/validate.py`
-  (ver Validação). Os valores padrão de *m* e *w₀* do TM+TM-Fluid, HAM on/off coincidem com a geometria
-  do artigo (w_e = 646 µm, w_p = 1584 µm).
-* L. C. Malacarne et al., *Appl. Spectrosc.* **65**, 99 (2011), doi:10.1366/10-06096
-  (modelo TLLAM).
-* As demais referências de cada modelo estão na tabela de Modelos.
+Artigos usados ou citados no projeto, em ordem cronológica. A tabela de Modelos diz qual equação
+de cada um foi implementada.
+
+1. Shen, Lowe & Snook, *Chem. Phys.* **165**, 385 (1992). Modelo de lente térmica em modo
+   descasado, base do TL de Shen.
+2. Baesso, Shen & Snook, *J. Appl. Phys.* **75**, 3732 (1994). TL de Shen (eq. 10).
+3. Sato et al., *J. Appl. Phys.* **104**, 053520 (2008). TM LAM (eq. 32), TM BAM (eqs. 33–34) e o
+   limite HAM do TM+TM-Fluid, HAM on/off.
+4. L. C. Malacarne, N. G. C. Astrath, G. V. B. Lukasievicz, E. K. Lenzi, M. L. Baesso e
+   S. E. Bialkowski, "Time-Resolved Thermal Lens and Thermal Mirror Spectroscopies with
+   Sample-Fluid Heat Coupling: A Complete Model for Material Characterization",
+   *Appl. Spectrosc.* **65**, 99 (2011), doi:10.1366/10-06096. TL+TL-Fluid (TLLAM).
+5. N. G. C. Astrath, L. C. Malacarne, V. S. Zanuto, M. P. Belançon, R. S. Mendes, M. L. Baesso e
+   C. Jacinto, "Finite-size effect on the surface deformation thermal mirror method",
+   *J. Opt. Soc. Am. B* **28**, 1735 (2011). TM LAM, amostra finita (eq. 10).
+6. G. V. B. Lukasievicz, L. C. Malacarne, N. G. C. Astrath, V. S. Zanuto, L. S. Herculano e
+   S. E. Bialkowski, "A Theoretical and Experimental Study of Time-Resolved Thermal Mirror with
+   Non-Absorbing Heat-Coupling Fluids", *Appl. Spectrosc.* **66**, 1461–1467 (2012).
+   TM+TM-Fluid, HAM, acoplamento completo (eqs. 4–9 e 18–22).
+7. Herculano et al., *J. Phys. Chem. B* **117**, 1932 (2013). TL com fotobranqueamento (eqs. 3–6).
+8. Silva et al., *Appl. Phys. Lett.* **102**, 141910 (2013). TL + lente de população (eqs. 1–3).
+9. G. A. S. Flizikowski, O. A. Capeloto, V. G. Camargo, B. Anghinoni, M. L. Baesso,
+   L. C. Malacarne, M. P. Belançon, T. Požar e N. G. C. Astrath, "Laser induced thermoelastic
+   surface displacement in solids detected simultaneously by photothermal mirror and
+   interferometry", *Opt. Express* **28**, 7116 (2020), doi:10.1364/OE.386344. Espelho térmico
+   com excitação ligada/desligada e lente térmica no ar, com acoplamento de calor
+   amostra–fluido (eqs. 3–10), em cobre, bronze e inox. Reproduzido em `tests/validate.py`
+   (ver Validação). Os valores padrão de *m* e *w₀* do TM+TM-Fluid, HAM on/off coincidem com a
+   geometria do artigo (w_e = 646 µm, w_p = 1584 µm).
 
 ## Licença
 
