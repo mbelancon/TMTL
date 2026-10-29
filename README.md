@@ -28,13 +28,13 @@ e uma forma de integrar o modelo várias centenas de vezes mais rápida que a ve
 | Modelo | Uso | Referência |
 |---|---|---|
 | **TLLAM** — TL amostra + fluido | lente térmica com acoplamento térmico amostra–fluido e espessura qualquer (modelo unificado) | Malacarne et al., *Appl. Spectrosc.* **65**, 99 (2011) |
-| **TM-HAM on/off + TL no ar** | espelho térmico em amostra opaca, com desligamento e lente no ar | Sato et al., *J. Appl. Phys.* **104**, 053520 (2008) |
+| **TM-HAM on/off + TL no ar** | espelho térmico em amostra opaca, com desligamento e lente no ar | Sato et al., *J. Appl. Phys.* **104**, 053520 (2008); Flizikowski et al., *Opt. Express* **28**, 7116 (2020) |
 | **TM-LAM** | espelho térmico, baixa absorção (fonte uniforme em z), amostra semi-infinita | Sato et al. (2008), eq. 32 |
 | **TM-LAM, amostra finita** | espelho térmico de baixa absorção em amostra de espessura *l* (faces livres) | Astrath et al., *J. Opt. Soc. Am. B* **28**, 1735 (2011), eq. 10 |
 | **TM-BAM** (lei de Beer) | espelho térmico para qualquer A_e; tende ao LAM e ao HAM | Sato et al. (2008), eq. 33–34 |
 | **TL de Shen** | expressão fechada clássica da lente térmica no modo descasado | Baesso, Shen & Snook, *J. Appl. Phys.* **75**, 3732 (1994), eq. 10 |
 | **TL com fotobranqueamento** | lente térmica de líquido cuja absorção decai por reação fotoquímica (taxa K_T) até ε̄·β; ajusta θ, K_T e ε̄ | Herculano et al., *J. Phys. Chem. B* **117**, 1932 (2013), eqs. 3–6 |
-| **TM + fluido** | espelho térmico com a lente térmica do fluido em contato (ar, água); acoplamento de calor amostra–fluido por transformada de Laplace (tabelas de Talbot); ajusta D, θ e θ_f | Lukasievicz et al., 2012 |
+| **TM + fluido** | espelho térmico com a lente térmica do fluido em contato (ar, água); acoplamento de calor amostra–fluido por transformada de Laplace (tabelas de Talbot); ajusta D, θ e θ_f | Lukasievicz et al., *Appl. Spectrosc.* **66**, 1461 (2012); Flizikowski et al., *Opt. Express* **28**, 7116 (2020), eqs. 3–10 |
 | **TL + lente de população** | lente térmica mais lente do estado excitado (população saturável, vida τ); ajusta θ_th, θ_PL, τ e D | Silva et al., *Appl. Phys. Lett.* **102**, 141910 (2013), eqs. 1–3 |
 
 **Cada modelo tem o seu θ.** A interface mostra a definição e a unidade do θ do modelo
@@ -54,6 +54,12 @@ escolhido logo abaixo da descrição, e o relatório e a série repetem essa def
 Os modelos de espelho térmico aceitam desligamento da excitação em `t_off` (0 = sem desligar). A convenção de sinal da fase é a mesma
 do `tmhamtl-onoff.c` (fase somada a V·g na integral de difração); em relação à eq. 31 de
 Sato et al. isso equivale a trocar o sinal de θ_TM, sem nenhum outro efeito no ajuste.
+
+**Relação com o θ_TM de Flizikowski et al. (2020).** No artigo, θ_TM = −P_e (1−R) α_T (1+ν) φ/(λ_p k),
+com P_e a potência incidente e R a refletividade. É o θ_HAM da tabela acima com a potência
+absorvida P_e(1−R) no lugar de P_e; ou seja, com P_e incidente, θ_TM(artigo) = (1−R)·θ_HAM. A
+Tabela 1 do artigo lista θ_TM/P_e em módulo (pela fórmula, é negativo para amostra que dilata,
+como aqui).
 
 No modelo de fotobranqueamento, fixe D com uma medida do solvente puro (K_T = 0, ε̄ = 1) e ajuste
 θ, K_T e ε̄ nos transientes da solução. Na série (vários P_e), K_T = K_m + K_pb·P_e: a reta de K_T
@@ -276,6 +282,16 @@ Para os modelos de espelho térmico novos e o de Shen, o teste confere:
     TL população: Φ_PL fechada contra quadratura em z: erro relativo máx 4.2e-15
     θ_PL = 0 contra TL de Shen: diferença máx 7.8e-07
     ajuste   tlpop     d = 2.5992e-07 (-0.1σ)  th = 0.14999 (-0.1σ)  tpl = -12071 (-0.5σ)  tau = 0.0016903 (-0.4σ)
+    artigo Flizikowski 2020, cobre : TM + fluido ligado 2.4e-05, desligado 2.4e-05
+    artigo Flizikowski 2020, bronze: TM + fluido ligado 3.5e-06, desligado 5.2e-06
+    artigo Flizikowski 2020, inox  : TM + fluido ligado 1.5e-06, desligado 1.3e-06 (relativo ao sinal)
+
+As eqs. 3–10 de Flizikowski et al. (2020) (G da eq. 4, u_z da eq. 6, lente no ar da eq. 8, sinal da
+eq. 10) foram implementadas à parte, com os parâmetros da Tabela 1 e da fig. 1 do artigo, e o
+TM + fluido as reproduz. O desligamento é a superposição T_on(t) − T_on(t − ξ). O `tmhamtl`
+(superfície livre, como no `tmhamtl-onoff.c`) difere do artigo por 9e-4 (cobre), 4e-3 (bronze) e
+1,3e-2 (inox) do sinal no regime desligado, porque o artigo inclui a troca de calor amostra–ar; sem
+essa troca (κ → 0) os dois modelos coincidem a 1e-11. A diferença cresce com k_ar/k_amostra.
 
 * O núcleo do BAM, Ĝ(α,t) = ∫T̂(α,z,t)e^{−αz}dz, sai de
   dĜ/dt = [A_e erfc(αs) − α e^{−α²s²} erfcx(A_e s)]/(A_e² − α²), s = √(Dt), integrada em
@@ -325,8 +341,19 @@ print(res["params"]["d"], res["sigma"]["d"])
     tlfit/examples/     transientes e séries de exemplo
     tests/              validação contra o código original
 
-Referência do modelo TLLAM: L. C. Malacarne et al., *Appl. Spectrosc.* **65**, 99 (2011),
-doi:10.1366/10-06096.
+## Referências
+
+* G. A. S. Flizikowski, O. A. Capeloto, V. G. Camargo, B. Anghinoni, M. L. Baesso,
+  L. C. Malacarne, M. P. Belançon, T. Požar e N. G. C. Astrath, "Laser induced thermoelastic
+  surface displacement in solids detected simultaneously by photothermal mirror and
+  interferometry", *Opt. Express* **28**, 7116 (2020), doi:10.1364/OE.386344. Espelho térmico
+  com excitação ligada/desligada e lente térmica no ar, com acoplamento de calor
+  amostra–fluido (eqs. 3–10), em cobre, bronze e inox. Reproduzido em `tests/validate.py`
+  (ver Validação). Os valores padrão de *m* e *w₀* do TM-HAM on/off coincidem com a geometria
+  do artigo (w_e = 646 µm, w_p = 1584 µm).
+* L. C. Malacarne et al., *Appl. Spectrosc.* **65**, 99 (2011), doi:10.1366/10-06096
+  (modelo TLLAM).
+* As demais referências de cada modelo estão na tabela de Modelos.
 
 ## Licença
 

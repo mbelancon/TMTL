@@ -489,7 +489,8 @@ class TMHAMTL(Model):
     theta_info = {
         "th": {"def": "θ_HAM = θ_TM / A_e = −P_e α_T (1+ν) φ / (λ_p k)", "unit": "adimensional",
                "note": "Não contém A_e (amostra opaca). Para comparar com LAM, BAM e amostra finita, "
-                       "que dão θ_TM em 1/m: θ_TM = θ_HAM·A_e. Amostra que dilata (α_T > 0): θ < 0."},
+                       "que dão θ_TM em 1/m: θ_TM = θ_HAM·A_e. Amostra que dilata (α_T > 0): θ < 0. "
+                       "Com P_e incidente e refletividade R, o θ_TM de Flizikowski et al. (2020) é (1−R)·θ_HAM."},
     }
     linear = ("th",)     # a lente no ar também é proporcional a θ (pref ∝ th)
 
@@ -953,10 +954,12 @@ def _tm_g(kind, tau, kappa, rr):
 class TMFluido(Model):
     theta_info = {
         "th": {"def": "h_TM = θ_HAM = −P_e α_T (1+ν) φ / (λ_p k_s)", "unit": "adimensional",
-               "note": "Mesmo θ do TM-HAM (amostra opaca): não contém A_e. Amostra que dilata: h_TM < 0."},
+               "note": "Mesmo θ do TM-HAM (amostra opaca): não contém A_e. Amostra que dilata: h_TM < 0. "
+                       "Com P_e incidente e refletividade R, o θ_TM de Flizikowski et al. (2020) é (1−R)·h_TM."},
         "thf": {"def": "h_f = 2 P_e φ (∂n/∂T)_f / λ_p", "unit": "W/(K·m)",
                 "note": "Lente térmica do fluido (dois passes: antes e depois da reflexão). "
-                        "Com k_s conhecido, h_f/P_e dá (∂n/∂T)_f: h_f = 2 P_e φ (∂n/∂T)_f/λ_p."},
+                        "Com k_s conhecido, h_f/P_e dá (∂n/∂T)_f: h_f = 2 P_e φ (∂n/∂T)_f/λ_p. "
+                        "P_e é a potência absorvida; com P_e incidente use P_e(1−R)."},
     }
     linear = ("th", "thf")
 
