@@ -270,5 +270,73 @@ print("ajuste   tlbranq   " + "  ".join(f"{k} = {r['params'][k]:.5g} ({zs[k]:+.1
       + f"  ({r['seconds']:.1f} s)")
 ok &= all(abs(z) < 4 for z in zs.values())
 
+# 13. TM + fluido (Lukasievicz 2012): tabelas de Talbot contra os limites conhecidos
+mf = MODELS["tmfluido"]
+tf = np.linspace(0, 0.3, 120)
+pf = mf.defaults()
+pf.update(pf, thf=0.0)
+ham = MODELS["tmhamtl"]
+ph = ham.defaults()
+for k in ("m", "w0", "v"):
+    ph[k] = pf[k]
+ph["d"], ph["th"] = pf["d"], pf["th"]
+pf0 = dict(pf, cf=1e-9, thf=0.0)   # κ→0: fluido sem condutividade → só a superfície livre
+e_ham = np.abs(mf.intensity(tf, pf0) - ham.intensity(tf, ph)).max() / np.abs(ham.intensity(tf, ph) - 1).max()
+print(f"TM fluido κ→0 contra TM HAM: erro relativo ao sinal {e_ham:.1e}")
+ok &= e_ham < 1e-4
+
+txt = (ROOT / "tlfit" / "examples" / "tmfluido_aco_agua_sintetico.dat").read_text(encoding="utf-8")
+dd, _ = parse_table(txt)
+pp = mf.defaults()
+pp.update(mf.presets["Água"] if "Água" in mf.presets else {})
+pp.update(m=32.8, w0=7.4e-5, v=6.9)
+true_f = dict(d=6.94e-6, th=-0.062, thf=-26.9)
+prob = FitProblem(mf, dd[:, 0], dd[:, 1], pp, [make_free("d", 1e-7, 1e-4, True), make_free("th", -5, 5), make_free("thf", -1e3, 1e3)])
+r = run_fit(prob, method="auto", log=lambda s: None)
+zs = {k: (r["params"][k] - true_f[k]) / r["sigma"][k] for k in true_f}
+print("ajuste   tmfluido  " + "  ".join(f"{k} = {r['params'][k]:.5g} ({zs[k]:+.1f}σ)" for k in true_f)
+      + f"  ({r['seconds']:.1f} s)")
+ok &= all(abs(z) < 4 for z in zs.values())
+
+# 14. TL + lente de população (Silva 2013): forma fechada em z contra quadratura numérica
+from scipy.integrate import quad  # noqa: E402
+from tlfit.models import _pl_unit_phase  # noqa: E402
+
+gg = np.array([0.0, 0.05, 0.3, 1.0, 3.0])
+tt = np.array([[1e-4], [1e-3], [5e-3], [3e-2]])
+worst = 0.0
+for ae, l in [(240.0, 3.79e-3), (2000.0, 3.79e-3), (5.0, 3.79e-3)]:   # 5 → ramo de Gauss–Legendre
+    h, tau = 40.0, 1.7e-3
+    f = _pl_unit_phase(tt, np.exp(-2 * 28.7 * gg), ae, l, h, tau)
+    for i, t1 in enumerate(tt[:, 0]):
+        for j, u in enumerate(np.exp(-2 * 28.7 * gg)):
+            ref = quad(lambda z: u * np.exp(-ae * z) / (1 / tau + h * u * np.exp(-ae * z))
+                       * (1 - np.exp(-t1 * (1 / tau + h * u * np.exp(-ae * z)))), 0, l,
+                       epsabs=1e-14, epsrel=1e-12)[0]
+            worst = max(worst, abs(f[i, j] - ref) / np.abs(f).max())
+print(f"TL população: Φ_PL fechada contra quadratura em z: erro relativo máx {worst:.1e}")
+ok &= worst < 1e-10
+
+mp = MODELS["tlpop"]
+pq = mp.defaults()
+tq = np.linspace(0, 0.05, 100)
+sh = dict(d=pq["d"], th=0.01, m=pq["m"], w0=pq["w0"], v=pq["v"])
+e_sh = np.abs(mp.intensity(tq, dict(pq, th=0.01, tpl=0.0)) - MODELS["tlshen"].intensity(tq, sh)).max()
+print(f"θ_PL = 0 contra TL de Shen: diferença máx {e_sh:.1e}")
+ok &= e_sh < 1e-6
+
+txt = (ROOT / "tlfit" / "examples" / "tlpop_zblan_sintetico.dat").read_text(encoding="utf-8")
+dd, _ = parse_table(txt)
+pp = mp.defaults()
+true_p = dict(d=2.6e-7, th=0.15, tpl=-1.2e4, tau=1.7e-3)
+q = dict(pp, d=1e-7, th=0.05, tpl=-3000.0, tau=5e-4)
+prob = FitProblem(mp, dd[:, 0], dd[:, 1], q, [make_free("d", 1e-8, 1e-5, True), make_free("th", -1, 1),
+                                               make_free("tpl", -1e5, 1e5), make_free("tau", 1e-4, 1e-1, True)])
+r = run_fit(prob, method="auto", log=lambda s: None)
+zs = {k: (r["params"][k] - true_p[k]) / r["sigma"][k] for k in true_p}
+print("ajuste   tlpop     " + "  ".join(f"{k} = {r['params'][k]:.5g} ({zs[k]:+.1f}σ)" for k in true_p)
+      + f"  ({r['seconds']:.1f} s)")
+ok &= all(abs(z) < 4 for z in zs.values())
+
 print("OK" if ok else "FALHOU")
 sys.exit(0 if ok else 1)

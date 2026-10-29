@@ -34,6 +34,8 @@ e uma forma de integrar o modelo várias centenas de vezes mais rápida que a ve
 | **TM-BAM** (lei de Beer) | espelho térmico para qualquer A_e; tende ao LAM e ao HAM | Sato et al. (2008), eq. 33–34 |
 | **TL de Shen** | expressão fechada clássica da lente térmica no modo descasado | Baesso, Shen & Snook, *J. Appl. Phys.* **75**, 3732 (1994), eq. 10 |
 | **TL com fotobranqueamento** | lente térmica de líquido cuja absorção decai por reação fotoquímica (taxa K_T) até ε̄·β; ajusta θ, K_T e ε̄ | Herculano et al., *J. Phys. Chem. B* **117**, 1932 (2013), eqs. 3–6 |
+| **TM + fluido** | espelho térmico com a lente térmica do fluido em contato (ar, água); acoplamento de calor amostra–fluido por transformada de Laplace (tabelas de Talbot); ajusta D, θ e θ_f | Lukasievicz et al., 2012 |
+| **TL + lente de população** | lente térmica mais lente do estado excitado (população saturável, vida τ); ajusta θ_th, θ_PL, τ e D | Silva et al., *Appl. Phys. Lett.* **102**, 141910 (2013), eqs. 1–3 |
 
 **Cada modelo tem o seu θ.** A interface mostra a definição e a unidade do θ do modelo
 escolhido logo abaixo da descrição, e o relatório e a série repetem essa definição:
@@ -46,6 +48,8 @@ escolhido logo abaixo da descrição, e o relatório e a série repetem essa def
 | TM-LAM, TM finito, TM-BAM | θ_TM = −P_e A_e α_T (1+ν) φ/(λ_p k) | 1/m |
 | Shen | θ = −P_e A_e L φ (ds/dT)/(k λ_p) | rad |
 | TL com fotobranqueamento | θ = −P_e β L φ (dn/dT)/(k λ_p), β = absorção inicial (o patamar final vale ε̄·θ) | rad |
+| TM + fluido | θ = θ_HAM da amostra (adimensional); θ_f = 2 P_e φ (dn/dT)_f/λ_p, em W/(K·m) | — |
+| TL + lente de população | θ_th = −P_abs (ds/dT) φ/(k λ_p), P_abs = P A_e L; θ_PL = I0 σ_abs N_T Δα_P (2π f_L)²/(n λ_p E) | rad; 1/(m·s) |
 
 Os modelos de espelho térmico aceitam desligamento da excitação em `t_off` (0 = sem desligar). A convenção de sinal da fase é a mesma
 do `tmhamtl-onoff.c` (fase somada a V·g na integral de difração); em relação à eq. 31 de
@@ -267,6 +271,11 @@ Para os modelos de espelho térmico novos e o de Shen, o teste confere:
     ajuste   tmfinito  D = 5.0145e-07 (+1.4σ)  θ = -149.93 (+1.0σ)
     ajuste   tlshen    D = 4.9652e-07 (-1.3σ)  θ = -0.10419 (-1.3σ)
     ajuste   tlbranq   th = 0.048085 (+1.8σ)  kt = 2.0064 (+1.1σ)  eb = 0.27033 (+0.8σ)
+    TM fluido κ→0 contra TM HAM: erro relativo ao sinal 7.6e-12
+    ajuste   tmfluido  d = 6.9307e-06 (-0.5σ)  th = -0.062098 (-0.7σ)  thf = -26.858 (+0.5σ)
+    TL população: Φ_PL fechada contra quadratura em z: erro relativo máx 4.2e-15
+    θ_PL = 0 contra TL de Shen: diferença máx 7.8e-07
+    ajuste   tlpop     d = 2.5992e-07 (-0.1σ)  th = 0.14999 (-0.1σ)  tpl = -12071 (-0.5σ)  tau = 0.0016903 (-0.4σ)
 
 * O núcleo do BAM, Ĝ(α,t) = ∫T̂(α,z,t)e^{−αz}dz, sai de
   dĜ/dt = [A_e erfc(αs) − α e^{−α²s²} erfcx(A_e s)]/(A_e² − α²), s = √(Dt), integrada em
@@ -308,7 +317,7 @@ print(res["params"]["d"], res["sigma"]["d"])
     montar_portatil.bat monta a versão portátil (ferramentas/montar_portatil.ps1)
     .github/workflows/  build automático da versão portátil e Releases
     legado/             código original (C com GSL), notebook e README da versão 1
-    tlfit/models.py     modelos (TLLAM, TM-HAM, TM-LAM, TM finito, TM-BAM, Shen, fotobranqueamento)
+    tlfit/models.py     modelos (TLLAM, TM-HAM, TM-LAM, TM finito, TM-BAM, Shen, fotobranqueamento, TM + fluido, TL + população)
     tlfit/optim.py      ajuste em dois níveis, PSO, Levenberg–Marquardt, incertezas
     tlfit/batch.py      ajuste de séries e estatística (θ/P, médias, tendências)
     tlfit/server.py     servidor local (biblioteca padrão) para a interface
