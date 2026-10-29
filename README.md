@@ -116,7 +116,7 @@ têm séries sintéticas para teste.
 
 * **Automático, no GitHub:** a automação `.github/workflows/build.yml` monta e testa a versão
   portátil num Windows do GitHub a cada push (o zip fica em *Actions → execução →
-  Artifacts*). Ao criar uma tag, por exemplo `git tag v2.0.0 && git push --tags`, o zip é
+  Artifacts*). Ao criar uma tag, por exemplo `git tag v2.1.0 && git push --tags`, o zip é
   publicado em **Releases**.
 * **No seu computador (Windows, com internet):** dois cliques em `montar_portatil.bat`. O
   script `ferramentas/montar_portatil.ps1` baixa o Python embutível do python.org, instala
