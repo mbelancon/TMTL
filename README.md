@@ -204,6 +204,13 @@ O que o notebook original fazia era uma busca aleatória em torno do melhor pont
 (perturbação de ±percent %), não um PSO: não havia velocidade nem memória das partículas,
 e o alcance da busca ficava limitado pelo palpite inicial.
 
+## Métodos matemáticos
+
+O documento [`docs/METODOS_MATEMATICOS.md`](docs/METODOS_MATEMATICOS.md) descreve o problema geral
+(aquecimento, fase do feixe de prova e difração até o detector), mostra que todos os modelos
+compartilham a mesma integral de difração e diferem só no núcleo da fase, dá as equações de cada
+modelo e explica as técnicas usadas para acelerar as integrações.
+
 ## O que mudou no cálculo
 
 O modelo é
@@ -322,6 +329,8 @@ print(res["params"]["d"], res["sigma"]["d"])
     tlfit/static/       interface (HTML/JS, sem dependências externas)
     tlfit/examples/     transientes e séries de exemplo
     tests/              validação contra o código original
+    docs/               métodos matemáticos (equações dos modelos e técnicas numéricas)
+    CONTEXTO.md         contexto curto para quem for mexer no código (decisões, convenções)
 
 ## Referências
 
