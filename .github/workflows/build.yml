@@ -1,7 +1,7 @@
-# Gera a versão portátil para Windows (Python embutido + numpy + scipy + programa).
-# - Em todo push/PR: o zip fica em "Actions" → execução → "Artifacts".
-# - Ao criar uma tag v* (ex.: git tag v2.2.1 && git push --tags): publica uma Release
-#   com o zip, que os colaboradores baixam sem precisar instalar Python.
+# Builds the portable Windows version (embedded Python + numpy + scipy + program).
+# - On every push/PR: the zip is in "Actions" → run → "Artifacts".
+# - When a v* tag is created (e.g. git tag v2.2.1 && git push --tags): publishes a Release
+#   with the zip, which collaborators download without installing Python.
 name: build
 
 on:
@@ -15,40 +15,40 @@ permissions:
   contents: write
 
 jobs:
-  portatil-windows:
+  portable-windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Validação do motor (código-fonte)
+      - name: Engine validation (source code)
         run: |
           python -m pip install numpy scipy
           python tests/validate.py
-      - name: Instalação como pacote (pip install .)
+      - name: Install as a package (pip install .)
         shell: pwsh
         run: |
           python -m pip install .
-          python -c "import importlib.metadata as m, tlfit.server; print('tlfit', m.version('tlfit'), '| licença:', m.metadata('tlfit').get('License-Expression'))"
+          python -c "import importlib.metadata as m, tlfit.server; print('tlfit', m.version('tlfit'), '| license:', m.metadata('tlfit').get('License-Expression'))"
           tlfit --help
-      - name: Montar e testar a versão portátil
+      - name: Build and test the portable version
         shell: pwsh
-        run: ./ferramentas/montar_portatil.ps1 -Saida "$env:RUNNER_TEMP\portatil" -Python (Get-Command python).Source
-      - name: Teste rápido do lançador
+        run: ./ferramentas/montar_portatil.ps1 -Output "$env:RUNNER_TEMP\portable" -Python (Get-Command python).Source
+      - name: Quick launcher test
         shell: pwsh
         run: |
-          $dir = "$env:RUNNER_TEMP\portatil\TMTL2"
+          $dir = "$env:RUNNER_TEMP\portable\TMTL2"
           $p = Start-Process "$dir\python\python.exe" -ArgumentList "app.py","--browser" -WorkingDirectory $dir -PassThru
           Start-Sleep 10
-          if ($p.HasExited) { Write-Error "O programa fechou logo ao iniciar (código $($p.ExitCode))"; exit 1 }
+          if ($p.HasExited) { Write-Error "The program closed right after starting (code $($p.ExitCode))"; exit 1 }
           Stop-Process $p
       - uses: actions/upload-artifact@v4
         with:
-          name: TMTL2-portatil-windows
-          path: ${{ runner.temp }}/portatil/*.zip
+          name: TMTL2-portable-windows
+          path: ${{ runner.temp }}/portable/*.zip
       - name: Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ runner.temp }}/portatil/*.zip
+          files: ${{ runner.temp }}/portable/*.zip

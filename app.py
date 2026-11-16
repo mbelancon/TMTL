@@ -1,14 +1,14 @@
-"""TMTL2 — aplicativo de desktop.
+"""TMTL2 — desktop application.
 
-Ponto de entrada do executável (PyInstaller). Sobe o servidor local numa porta
-livre e abre a interface:
+Entry point of the application. Starts the local server on a free port and
+opens the interface:
 
-* numa janela própria, se o pywebview estiver disponível (Edge WebView2 no
+* in its own window, if pywebview is available (Edge WebView2 on
   Windows 10/11);
-* senão, no navegador padrão. Nesse caso o programa encerra sozinho cerca de
-  30 s depois que a aba é fechada.
+* otherwise, in the default browser. In that case the program exits by itself
+  about 30 s after the tab is closed.
 
-Também funciona sem empacotar:  python app.py   [--browser]
+Run it with:  python app.py   [--browser]
 """
 import multiprocessing
 import os
@@ -17,19 +17,19 @@ import threading
 import time
 import webbrowser
 
-# poucos núcleos para o BLAS: o paralelismo do ajuste é feito pelo enxame
+# few cores for BLAS: the fit is parallelized by the swarm/sweep threads
 os.environ.setdefault("OMP_NUM_THREADS", "1")
 os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
 os.environ.setdefault("MKL_NUM_THREADS", "1")
 
 from tlfit import server  # noqa: E402
 
-TITLE = "TMTL2 — Ajuste de TL e TM"
-IDLE_EXIT = 30  # s sem ping da página → encerra (modo navegador)
+TITLE = "TMTL2 — TL and TM fitting"
+IDLE_EXIT = 30  # s without a ping from the page → exit (browser mode)
 
 
 def log(msg):
-    # no executável sem console, sys.stdout é None
+    # in an executable without a console, sys.stdout is None
     if sys.stdout is not None:
         print(msg, flush=True)
 
@@ -50,12 +50,12 @@ def main():
                 webview.start()
                 httpd.shutdown()
                 return
-            except Exception as e:  # sem WebView2, por exemplo
-                log(f"Janela própria indisponível ({e}); abrindo no navegador.")
+            except Exception as e:  # no WebView2, for example
+                log(f"Own window unavailable ({e}); opening in the browser.")
 
-    log(f"{TITLE}\nInterface em {url}\nFeche esta janela (ou a aba do navegador) para encerrar.")
+    log(f"{TITLE}\nInterface at {url}\nClose this window (or the browser tab) to quit.")
     webbrowser.open(url)
-    server.LAST_PING[0] = time.time() + 20  # tempo para o navegador abrir
+    server.LAST_PING[0] = time.time() + 20  # time for the browser to open
     try:
         while time.time() - server.LAST_PING[0] < IDLE_EXIT:
             time.sleep(2)
