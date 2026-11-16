@@ -215,8 +215,10 @@ modelo e explica as técnicas usadas para acelerar as integrações.
 
 O modelo é
 
-    I(t) = (1+V²) | ∫₀^30 e^{-g} exp(i[V g + Φ(g,t)]) dg |²
-    Φ(g,t) = ∫ K(α,t) [J₀(α w₀ √(m g)) − 1] dα
+```math
+I(t) = (1+V^2)\left|\int_0^{30} e^{-g}\, e^{\,i\,[V g + \Phi(g,t)]}\, dg\right|^2,\qquad
+\Phi(g,t) = \int_0^\infty K(\alpha,t)\left[J_0\!\left(\alpha\, w_0\sqrt{m g}\right) - 1\right] d\alpha
+```
 
 e no código original cada Φ era uma integral adaptativa (QAG) chamada **dentro** de outra
 integral adaptativa, duas vezes (uma para cos, outra para sin), e com a lente no ar havia um
