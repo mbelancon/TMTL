@@ -11,6 +11,7 @@ que é a análise usual do grupo). Distribuição para colaboradores via GitHub.
 ## Estrutura
 - `tlfit/` — `models.py`, `optim.py`, `batch.py`, `dataio.py`, `server.py` + `static/` (interface), `examples/`
 - `app.py`, `rodar.bat`, `montar_portatil.bat`, `Dockerfile`, `tests/`
+- `CHANGELOG.md` — rascunho das notas de cada versão (copiar na página de Releases)
 - `docs/METODOS_MATEMATICOS.md` — física e numérica dos modelos (ler antes de mexer em `models.py`)
 - `legado/` — referência histórica; o código em C foi abandonado (TMTL2 é só Python desde a v2.0.0)
 - Versão atual no `pyproject.toml` (2.2.1 em nov/2026); licença GPL-3
@@ -39,4 +40,5 @@ que é a análise usual do grupo). Distribuição para colaboradores via GitHub.
 - Artigos de referência no Google Drive (pasta Claude)
 
 ## Pendências
-- (preencher)
+- Próxima release (issue #7): itens de código já no master (PR #8); notas prontas em `CHANGELOG.md`.
+  Falta editar as notas publicadas da v2.2.1 (ainda dizem "TM+TM-Fluid"; texto corrigido no `CHANGELOG.md`)
