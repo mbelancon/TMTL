@@ -1,20 +1,20 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ajuste de TL e TM</title>
+<title>TL and TM fitting</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Fraunces:opsz,wght@9..144,600&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bench:#e6eaee;      /* fundo: mesa óptica */
+  --bench:#e6eaee;      /* background: optical table */
   --panel:#fbfcfd;
   --ink:#18222d;
   --muted:#5b6876;
   --line:#c9d1d9;
-  --data:#24518f;       /* pontos experimentais */
-  --fit:#b3175a;        /* curva do modelo */
+  --data:#24518f;       /* experimental points */
+  --fit:#b3175a;        /* model curve */
   --ok:#2d7a4b;
   --warn:#9a5b00;
   --focus:#24518f;
@@ -33,6 +33,12 @@ main{display:grid;grid-template-rows:auto 1fr 300px;min-width:0;min-height:0}
 
 h1{font:600 22px/1.1 var(--display);margin:0 0 2px;letter-spacing:-.01em}
 .sub{color:var(--muted);font-size:13px;margin:0 0 16px}
+.titlerow{display:flex;align-items:baseline;gap:8px}
+.titlerow h1{flex:1}
+.lang{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;font-size:12px}
+.lang button{border:0;background:#fff;padding:2px 8px;cursor:pointer}
+.lang button+button{border-left:1px solid var(--line)}
+.lang button.on{background:var(--ink);color:#fff}
 section.blk{border-top:1px solid var(--line);padding:14px 0 6px}
 section.blk>h2{font-size:14px;font-weight:700;margin:0 0 10px}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
@@ -99,12 +105,12 @@ details.more summary{cursor:pointer;font-size:13px;color:var(--muted)}
 .empty[hidden]{display:none}
 .empty{position:absolute;inset:40px 0 0;display:grid;place-items:center;color:var(--muted);font-size:14px;pointer-events:none;text-align:center;padding:20px}
 
-/* modos e série */
+/* modes and series */
 .modes{display:flex;margin:0 0 14px;border:1px solid var(--line);border-radius:7px;overflow:hidden}
 .modes button{flex:1;border:0;background:#fff;padding:6px 8px;cursor:pointer;font-size:14px}
 .modes button+button{border-left:1px solid var(--line)}
 .modes button.on{background:var(--ink);color:#fff}
-[hidden]{display:none !important}   /* vale também para painéis com display próprio (#mainSer) */
+[hidden]{display:none !important}   /* also applies to panels with their own display (#mainSer) */
 .filewrap{max-height:230px;overflow:auto;border:1px solid var(--line);border-radius:6px;margin:8px 0}
 table.files{width:100%;border-collapse:collapse;font-size:12.5px}
 table.files th{position:sticky;top:0;background:var(--panel);font-weight:400;color:var(--muted);text-align:left;padding:3px 6px;border-bottom:1px solid var(--line)}
@@ -142,108 +148,114 @@ table.results td.pend{color:var(--muted)}
 <body>
 <div class="app">
 <aside>
-  <h1>Ajuste de TL e TM</h1>
-  <p class="sub">Transientes de lente térmica (TL) e espelho térmico (TM) resolvidos no tempo</p>
-  <div class="modes" role="group" aria-label="Modo">
-    <button id="modeOne" class="on" aria-pressed="true">Um transiente</button>
-    <button id="modeSer" aria-pressed="false">Série</button>
+  <div class="titlerow">
+    <h1 data-i18n="app.title">TL and TM fitting</h1>
+    <div class="lang" role="group" aria-label="Language / Idioma">
+      <button id="langPT" lang="pt" title="Português">PT</button>
+      <button id="langEN" lang="en" title="English">EN</button>
+    </div>
+  </div>
+  <p class="sub" data-i18n="app.sub">Time-resolved thermal lens (TL) and thermal mirror (TM) transients</p>
+  <div class="modes" role="group" data-i18n-aria="mode.group">
+    <button id="modeOne" class="on" aria-pressed="true" data-i18n="mode.one">One transient</button>
+    <button id="modeSer" aria-pressed="false" data-i18n="mode.series">Series</button>
   </div>
 
   <section class="blk" id="secSer" hidden>
-    <h2>Série de transientes</h2>
-    <div class="drop" id="sdrop" tabindex="0" role="button">Arraste a pasta ou os arquivos aqui<br><small>ou use os botões abaixo</small></div>
+    <h2 data-i18n="ser.title">Series of transients</h2>
+    <div class="drop" id="sdrop" tabindex="0" role="button" data-i18n-html="ser.drop">Drag the folder or the files here<br><small>or use the buttons below</small></div>
     <input type="file" id="serDir" webkitdirectory multiple hidden>
     <input type="file" id="serFiles" multiple accept=".dat,.txt,.csv,.tsv" hidden>
     <div class="row" style="margin-top:8px">
-      <button class="btn" id="openDir">Abrir pasta</button>
-      <button class="btn" id="openFiles">Escolher arquivos</button>
+      <button class="btn" id="openDir" data-i18n="ser.openDir">Open folder</button>
+      <button class="btn" id="openFiles" data-i18n="ser.openFiles">Choose files</button>
     </div>
     <div class="file" id="serinfo"></div>
     <div class="filewrap" id="filewrap" hidden>
       <table class="files" id="files">
-        <thead><tr><th title="Incluir na série">Usar</th><th>Arquivo</th><th id="xhead">P (mW)</th></tr></thead>
+        <thead><tr><th data-i18n-title="ser.useTitle" data-i18n="ser.use">Use</th><th data-i18n="ser.file">File</th><th id="xhead">P (mW)</th></tr></thead>
         <tbody></tbody>
       </table>
     </div>
-    <p class="hint">A potência vem do nome do arquivo (por exemplo, 150mW ou 0,2W) ou do cabeçalho (“Potência: 150 mW”). Corrija na tabela se preciso. São usadas as duas primeiras colunas: tempo e sinal.</p>
+    <p class="hint" data-i18n="ser.hint">The power comes from the file name (for example, 150mW or 0.2W) or from the header (“Power: 150 mW”). Correct it in the table if needed. The first two columns are used: time and signal.</p>
     <div class="row">
-      <label>Variável da série</label><input class="num" id="xlabel" value="Potência (mW)" style="width:170px;text-align:left">
+      <label data-i18n="ser.variable">Series variable</label><input class="num" id="xlabel" value="Power (mW)" style="width:170px;text-align:left">
     </div>
     <div class="row">
-      <label><input type="checkbox" id="snorm"> Normalizar cada transiente por I(t=0)</label>
+      <label><input type="checkbox" id="snorm"> <span data-i18n="ser.norm">Normalize each transient by I(t=0)</span></label>
     </div>
     <div class="row">
-      <label>Janela do ajuste: de</label><input class="num short" id="stmin" placeholder="início">
-      <label>a</label><input class="num short" id="stmax" placeholder="fim"><label>s</label>
+      <label data-i18n="win.from">Fit window: from</label><input class="num short" id="stmin" data-i18n-placeholder="win.start" placeholder="start">
+      <label data-i18n="win.to">to</label><input class="num short" id="stmax" data-i18n-placeholder="win.end" placeholder="end"><label>s</label>
     </div>
-    <div class="row"><label>Exemplos:</label><span id="sexamples"></span></div>
+    <div class="row"><label data-i18n="examples">Examples:</label><span id="sexamples"></span></div>
   </section>
 
   <section class="blk" id="secOne">
-    <h2>Transiente</h2>
-    <div class="drop" id="drop" tabindex="0" role="button">Arraste o arquivo aqui ou clique para abrir<br><small>.dat, .txt ou .csv com tempo e intensidade</small></div>
+    <h2 data-i18n="one.title">Transient</h2>
+    <div class="drop" id="drop" tabindex="0" role="button" data-i18n-html="one.drop">Drag the file here or click to open<br><small>.dat, .txt or .csv with time and intensity</small></div>
     <input type="file" id="file" accept=".dat,.txt,.csv,.tsv" hidden>
     <div class="file" id="fileinfo"></div>
     <div class="row" id="colrow" hidden>
-      <label>Tempo</label><select id="colT"></select>
-      <label>Intensidade</label><select id="colY"></select>
+      <label data-i18n="one.time">Time</label><select id="colT"></select>
+      <label data-i18n="one.intensity">Intensity</label><select id="colY"></select>
     </div>
     <div class="row">
-      <label><input type="checkbox" id="norm"> Normalizar por I(t=0)</label>
+      <label><input type="checkbox" id="norm"> <span data-i18n="one.norm">Normalize by I(t=0)</span></label>
     </div>
     <div class="row">
-      <label>Janela do ajuste: de</label><input class="num short" id="tmin" placeholder="início">
-      <label>a</label><input class="num short" id="tmax" placeholder="fim"><label>s</label>
+      <label data-i18n="win.from">Fit window: from</label><input class="num short" id="tmin" data-i18n-placeholder="win.start" placeholder="start">
+      <label data-i18n="win.to">to</label><input class="num short" id="tmax" data-i18n-placeholder="win.end" placeholder="end"><label>s</label>
     </div>
-    <div class="row"><label>Exemplos:</label><span id="examples"></span></div>
+    <div class="row"><label data-i18n="examples">Examples:</label><span id="examples"></span></div>
   </section>
 
   <section class="blk">
-    <h2>Modelo</h2>
+    <h2 data-i18n="model.title">Model</h2>
     <select id="model" style="width:100%"></select>
     <p class="hint" id="modeldesc"></p>
     <div class="thetabox" id="thetabox" hidden></div>
-    <div class="row" id="presetrow" hidden><label>Fluido:</label><span id="presets"></span></div>
+    <div class="row" id="presetrow" hidden><label data-i18n="model.fluid">Fluid:</label><span id="presets"></span></div>
     <table class="params" id="params">
       <colgroup><col style="width:40px"><col><col style="width:98px"><col style="width:64px"><col style="width:64px"></colgroup>
-      <thead><tr><th title="Marque para ajustar o parâmetro">Livre</th><th>Parâmetro</th><th>Valor</th><th>Mín</th><th>Máx</th></tr></thead>
+      <thead><tr><th data-i18n-title="par.freeTitle" data-i18n="par.free">Free</th><th data-i18n="par.param">Parameter</th><th data-i18n="par.value">Value</th><th data-i18n="par.min">Min</th><th data-i18n="par.max">Max</th></tr></thead>
       <tbody></tbody>
     </table>
-    <p class="hint">Marque “Livre” nos parâmetros a ajustar. Parâmetros positivos com limites que cobrem mais de duas décadas são explorados em escala logarítmica.</p>
+    <p class="hint" data-i18n="par.hint">Tick “Free” on the parameters to fit. Positive parameters whose bounds span more than two decades are explored on a logarithmic scale.</p>
   </section>
 
   <section class="blk">
-    <h2>Otimização</h2>
+    <h2 data-i18n="opt.title">Optimization</h2>
     <div class="row">
       <select id="method" style="width:100%">
-        <option value="auto">Automático (varredura em dois níveis quando possível)</option>
-        <option value="pso+lm">Enxame (PSO) e depois Levenberg–Marquardt</option>
-        <option value="pso">Só enxame (PSO)</option>
-        <option value="lm">Só Levenberg–Marquardt, a partir dos valores atuais</option>
+        <option value="auto" data-i18n="opt.auto">Automatic (two-level sweep when possible)</option>
+        <option value="pso+lm" data-i18n="opt.psolm">Swarm (PSO) then Levenberg–Marquardt</option>
+        <option value="pso" data-i18n="opt.pso">Swarm (PSO) only</option>
+        <option value="lm" data-i18n="opt.lm">Levenberg–Marquardt only, from the current values</option>
       </select>
     </div>
     <p class="hint" id="methodhint"></p>
     <div class="row">
-      <label>Partículas</label><input class="num short" id="particles" value="20">
-      <label>Iterações</label><input class="num short" id="iters" value="30">
+      <label data-i18n="opt.particles">Particles</label><input class="num short" id="particles" value="20">
+      <label data-i18n="opt.iters">Iterations</label><input class="num short" id="iters" value="30">
     </div>
     <div class="row">
-      <label title="O ajuste é repetido com sementes diferentes e fica o melhor resultado">Rodadas</label><input class="num short" id="restarts" value="3">
+      <label data-i18n-title="opt.runsTitle" data-i18n="opt.runs">Runs</label><input class="num short" id="restarts" value="3">
     </div>
     <div class="row">
-      <label>Precisão numérica</label>
-      <select id="acc"><option value="1">Normal</option><option value="2">Alta (2×, mais lenta)</option></select>
+      <label data-i18n="opt.acc">Numerical accuracy</label>
+      <select id="acc"><option value="1" data-i18n="opt.accNormal">Normal</option><option value="2" data-i18n="opt.accHigh">High (2×, slower)</option></select>
     </div>
     <div class="row" style="margin-top:12px">
-      <button class="btn" id="sim">Calcular curva</button>
-      <button class="btn primary" id="fit">Ajustar</button>
-      <button class="btn stop" id="stop" disabled>Parar</button>
+      <button class="btn" id="sim" data-i18n="btn.sim">Compute curve</button>
+      <button class="btn primary" id="fit" data-i18n="btn.fit">Fit</button>
+      <button class="btn stop" id="stop" disabled data-i18n="btn.stop">Stop</button>
     </div>
     <div class="row">
-      <button class="btn" id="exp" disabled>Exportar ajuste (.csv)</button>
-      <button class="btn" id="rep" disabled>Relatório (.txt)</button>
-      <button class="btn" id="sexp" disabled hidden>Exportar resultados (.csv)</button>
-      <button class="btn" id="srep" disabled hidden>Relatório da série (.txt)</button>
+      <button class="btn" id="exp" disabled data-i18n="btn.exp">Export fit (.csv)</button>
+      <button class="btn" id="rep" disabled data-i18n="btn.rep">Report (.txt)</button>
+      <button class="btn" id="sexp" disabled hidden data-i18n="btn.sexp">Export results (.csv)</button>
+      <button class="btn" id="srep" disabled hidden data-i18n="btn.srep">Series report (.txt)</button>
     </div>
   </section>
 </aside>
@@ -252,60 +264,60 @@ table.results td.pend{color:var(--muted)}
   <div class="status">
     <span><span class="k">χ²</span><span class="big" id="chi">—</span></span>
     <span><span class="k">R²</span><span id="r2">—</span></span>
-    <span><span class="k">avaliações</span><span id="neval">—</span></span>
-    <span><span class="k">tempo</span><span id="elapsed">—</span></span>
+    <span><span class="k" data-i18n="st.evals">evaluations</span><span id="neval">—</span></span>
+    <span><span class="k" data-i18n="st.time">time</span><span id="elapsed">—</span></span>
     <div class="bar"><i id="prog"></i></div>
-    <span class="state" id="state">Abra um transiente para começar</span>
+    <span class="state" id="state"></span>
   </div>
 
   <div class="plots-main">
     <div class="pane">
-      <h3>Intensidade normalizada</h3>
-      <div class="legend"><span><i class="dot" style="background:var(--data)"></i>experimental</span><span><i style="background:var(--fit)"></i>modelo</span></div>
+      <h3 data-i18n="plot.intensity">Normalized intensity</h3>
+      <div class="legend"><span><i class="dot" style="background:var(--data)"></i><span data-i18n="plot.exp">experimental</span></span><span><i style="background:var(--fit)"></i><span data-i18n="plot.model">model</span></span></div>
       <canvas id="cMain"></canvas>
-      <div class="empty" id="emptyMain">Nenhum transiente carregado.<br>Abra um arquivo ou escolha um exemplo à esquerda.</div>
+      <div class="empty" id="emptyMain" data-i18n-html="plot.emptyMain">No transient loaded.<br>Open a file or choose an example on the left.</div>
     </div>
-    <div class="pane"><h3>Resíduos</h3><canvas id="cRes"></canvas></div>
+    <div class="pane"><h3 data-i18n="plot.res">Residuals</h3><canvas id="cRes"></canvas></div>
   </div>
 
   <div class="plots-low">
-    <div class="pane"><h3>Convergência do χ²</h3><canvas id="cConv"></canvas></div>
+    <div class="pane"><h3 data-i18n="plot.conv">χ² convergence</h3><canvas id="cConv"></canvas></div>
     <div class="pane">
-      <h3>Busca <select id="sx"></select> × <select id="sy"></select></h3>
+      <h3><span data-i18n="plot.search">Search</span> <select id="sx"></select> × <select id="sy"></select></h3>
       <canvas id="cSwarm"></canvas>
-      <div class="empty" id="emptySwarm">Os pontos da busca aparecem aqui durante o ajuste.<br>Cor: χ² (escuro = melhor).</div>
+      <div class="empty" id="emptySwarm" data-i18n-html="plot.emptySwarm">The search points appear here during the fit.<br>Colour: χ² (dark = better).</div>
     </div>
-    <div class="pane"><h3>Registro</h3><pre class="log" id="log"></pre></div>
+    <div class="pane"><h3 data-i18n="plot.log">Log</h3><pre class="log" id="log"></pre></div>
   </div>
 </main>
 
 <main id="mainSer" hidden>
   <div class="status">
-    <span><span class="k">transientes</span><span class="big" id="sn">—</span></span>
-    <span><span class="k">ajustados</span><span id="sdone">—</span></span>
-    <span><span class="k">tempo</span><span id="selapsed">—</span></span>
+    <span><span class="k" data-i18n="st.transients">transients</span><span class="big" id="sn">—</span></span>
+    <span><span class="k" data-i18n="st.fitted">fitted</span><span id="sdone">—</span></span>
+    <span><span class="k" data-i18n="st.time">time</span><span id="selapsed">—</span></span>
     <div class="bar"><i id="sprog"></i></div>
-    <span class="state" id="sstate">Abra uma pasta ou escolha uma série de exemplo</span>
+    <span class="state" id="sstate"></span>
   </div>
   <div class="ser-top">
     <div class="pane">
-      <h3>Transientes e ajustes</h3>
+      <h3 data-i18n="plot.serT">Transients and fits</h3>
       <div class="legend" id="serlegend"></div>
       <canvas id="cSerT"></canvas>
-      <div class="empty" id="emptySer">Nenhuma série carregada.<br>Abra uma pasta ou escolha um exemplo à esquerda.</div>
+      <div class="empty" id="emptySer" data-i18n-html="plot.emptySer">No series loaded.<br>Open a folder or choose an example on the left.</div>
     </div>
     <div class="pane">
-      <h3><select id="spar" aria-label="Parâmetro"></select> × <span id="sxname">potência</span></h3>
+      <h3><select id="spar" data-i18n-aria="par.param"></select> × <span id="sxname">power</span></h3>
       <canvas id="cSerP"></canvas>
       <div class="sstats" id="sstats"></div>
     </div>
   </div>
   <div class="ser-low">
     <div class="pane">
-      <h3>Resultados</h3>
+      <h3 data-i18n="plot.results">Results</h3>
       <div class="tablewrap"><table class="results" id="results"><thead></thead><tbody></tbody></table></div>
     </div>
-    <div class="pane"><h3>Registro</h3><pre class="log" id="slog"></pre></div>
+    <div class="pane"><h3 data-i18n="plot.log">Log</h3><pre class="log" id="slog"></pre></div>
   </div>
 </main>
 </div>
@@ -316,7 +328,301 @@ const $ = id => document.getElementById(id);
 const S = {models:[], model:null, raw:null, header:[], t:null, y:null, fileName:"",
            curve:null, curveT:null, job:null, poll:null, swarmHist:[], lastResult:null};
 
-/* ---------- formatação ---------- */
+/* ---------- languages ----------
+   The interface has English and Portuguese. Default: the language of the system/browser
+   (Portuguese if it starts with "pt", otherwise English); the PT/EN choice is remembered.
+   Model texts come from the server as {en, pt}; L() picks the current language. */
+const I18N = {
+en: {
+  "app.title": "TL and TM fitting",
+  "app.sub": "Time-resolved thermal lens (TL) and thermal mirror (TM) transients",
+  "mode.group": "Mode", "mode.one": "One transient", "mode.series": "Series",
+  "ser.title": "Series of transients",
+  "ser.drop": "Drag the folder or the files here<br><small>or use the buttons below</small>",
+  "ser.openDir": "Open folder", "ser.openFiles": "Choose files",
+  "ser.use": "Use", "ser.useTitle": "Include in the series", "ser.file": "File",
+  "ser.hint": "The power comes from the file name (for example, 150mW or 0.2W) or from the header (“Power: 150 mW”). Correct it in the table if needed. The first two columns are used: time and signal.",
+  "ser.variable": "Series variable", "ser.xdefault": "Power (mW)",
+  "ser.norm": "Normalize each transient by I(t=0)",
+  "win.from": "Fit window: from", "win.to": "to", "win.start": "start", "win.end": "end",
+  "examples": "Examples:",
+  "one.title": "Transient",
+  "one.drop": "Drag the file here or click to open<br><small>.dat, .txt or .csv with time and intensity</small>",
+  "one.time": "Time", "one.intensity": "Intensity", "one.norm": "Normalize by I(t=0)",
+  "model.title": "Model", "model.fluid": "Fluid:",
+  "par.free": "Free", "par.freeTitle": "Tick to fit the parameter", "par.param": "Parameter",
+  "par.value": "Value", "par.min": "Min", "par.max": "Max",
+  "par.hint": "Tick “Free” on the parameters to fit. Positive parameters whose bounds span more than two decades are explored on a logarithmic scale.",
+  "par.fitAria": "fit {label}", "par.def": "def.",
+  "theta.box": "<b>{label}</b> of this model [{unit}]:",
+  "theta.here": "{label} here is {def} [{unit}].",
+  "opt.title": "Optimization",
+  "opt.auto": "Automatic (two-level sweep when possible)",
+  "opt.psolm": "Swarm (PSO) then Levenberg–Marquardt",
+  "opt.pso": "Swarm (PSO) only",
+  "opt.lm": "Levenberg–Marquardt only, from the current values",
+  "opt.particles": "Particles", "opt.iters": "Iterations", "opt.runs": "Runs",
+  "opt.runsTitle": "The fit is repeated with different seeds and the best result is kept",
+  "opt.acc": "Numerical accuracy", "opt.accNormal": "Normal", "opt.accHigh": "High (2×, slower)",
+  "hint.auto": "The θ (and I0) enter the phase linearly: the program sweeps the other free parameters and fits the θ at each point. With more than two free parameters besides the θ and I0, it uses the swarm, with the options below.",
+  "hint.pso+lm": "Swarm for the global search, repeated over several runs, and Levenberg–Marquardt to refine.",
+  "hint.pso": "Swarm only, without local refinement or uncertainties.",
+  "hint.lm": "Local refinement from the current values. Fast, but it depends on a good starting point.",
+  "btn.sim": "Compute curve", "btn.fit": "Fit", "btn.fitSeries": "Fit series", "btn.stop": "Stop",
+  "btn.exp": "Export fit (.csv)", "btn.rep": "Report (.txt)",
+  "btn.sexp": "Export results (.csv)", "btn.srep": "Series report (.txt)",
+  "st.evals": "evaluations", "st.time": "time", "st.transients": "transients", "st.fitted": "fitted",
+  "plot.intensity": "Normalized intensity", "plot.exp": "experimental", "plot.model": "model",
+  "plot.emptyMain": "No transient loaded.<br>Open a file or choose an example on the left.",
+  "plot.res": "Residuals", "plot.conv": "χ² convergence", "plot.search": "Search",
+  "plot.emptySwarm": "The search points appear here during the fit.<br>Colour: χ² (dark = better).",
+  "plot.log": "Log", "plot.serT": "Transients and fits",
+  "plot.emptySer": "No series loaded.<br>Open a folder or choose an example on the left.",
+  "plot.results": "Results",
+  "ax.time": "time (s)", "ax.signal": "signal",
+  "ax.evals": "model evaluations  (blue: search, wine: LM)",
+  "state.start": "Open a transient to start",
+  "state.ready": "Ready to compute or fit",
+  "state.computing": "Computing…",
+  "state.computed": "Curve computed in {ms} ms ({na}×{ng} nodes)",
+  "state.computeError": "Error while computing",
+  "state.queued": "Queued: another fit is running on the server",
+  "state.run": "Run {k} of {n}, ",
+  "state.pso": "PSO: iteration {i} of {n}", "state.grid": "Sweep: point {i} of {n}",
+  "state.lm": "refining with Levenberg–Marquardt",
+  "state.done": "Fit finished", "state.stopped": "Fit stopped", "state.error": "Fit failed — see the log",
+  "sstate.start": "Open a folder or choose an example series",
+  "sstate.ready": "Ready to fit the series", "sstate.readyEx": "{label}: click Fit series",
+  "sstate.queued": "Queued: another fit is running",
+  "sstate.item": "Transient {k} of {n} ({name}): {what}",
+  "sstate.grid": "sweep {i} of {n}", "sstate.pso": "PSO {i} of {n}", "sstate.lm": "refining",
+  "sstate.done": "Series finished", "sstate.stopped": "Series stopped", "sstate.error": "The series failed; see the log",
+  "log.loaded": "File {name} loaded ({n} points).",
+  "log.readError": "Could not read the file: {err}",
+  "log.error": "Error: {err}",
+  "log.fluid": "Fluid: {name} ({vals}).",
+  "log.needData": "Load a transient (at least 3 points in the window) before fitting.",
+  "log.needFree": "Tick at least one parameter as “Free”.",
+  "log.fitStart": "Fit started: {names} free; {n} points.",
+  "log.redchi": "Reduced χ² = {v} ({dof} degrees of freedom).",
+  "log.atBound": "Warning: {names} ended at the bound of the range; widen the range and fit again.",
+  "log.corr": "Strong correlation between {a} and {b} ({c}): these parameters are hard to tell apart with these data.",
+  "log.noFiles": "No .dat, .txt, .csv or .tsv file found.",
+  "log.serLoaded": "{n} transients loaded.",
+  "log.serBad": " Could not read: {list}.",
+  "log.serMiss": " {n} without an identified power: fill them in the table.",
+  "log.serFar": " The signals are not normalized: normalization by I(t=0) was turned on.",
+  "log.scaleFree": "With signals normalized by the first point, I0 (scale) was set free to absorb the noise of that point.",
+  "log.needSeries": "Open a folder or choose files before fitting the series.",
+  "err.cols": "fewer than two columns",
+  "err.invalid": "invalid value in \"{label}\"",
+  "file.info": "{name}: {n} points, t from {a} to {b} s",
+  "files.count": "{n} files", "files.countEx": "{label} ({n} files)",
+  "files.useAria": "use {name}", "files.of": "{a} of {b}",
+  "src.name": "read from the name", "src.header": "read from the header",
+  "src.name_nounit": "read from the name (no unit: mW)", "src.none": "not identified",
+  "res.atBound": " at bound", "res.endedAtBound": "ended at the bound of the range",
+  "res.file": "File", "res.error": "error", "res.pending": "pending", "res.fitting": "fitting",
+  "ser.legend": "colour: {x} from {a} (light) to {b} (dark)",
+  "ser.fitFirst": "Fit the series to see the parameters as a function of {x}.",
+  "ser.noneFitted": "No fitted transient with {x} defined.",
+  "ser.slope0": "<b>{p} / {x}</b> = {v} ± {e} (slope of the line through the origin).",
+  "ser.meanRatio": "Mean of the {n} values: {m} ± {sd} (standard deviation).",
+  "ser.line0": "Line through the origin: <b>{p} / {x} = {v} ± {e}</b>.",
+  "ser.line": "Line with intercept: slope {s} ± {se}, intercept {i} ± {ie}",
+  "ser.interceptWarn": " <span class=\"warn\">The intercept differs from zero: the dependence may not be linear.</span>",
+  "ser.mean": "<b>Mean: {m} ± {sd}</b> (standard deviation; standard error {sem}), {n} transients.",
+  "ser.slopeWith": "Slope with {x}: {s} ± {se}. ",
+  "ser.trend": "<span class=\"warn\">Significant trend: the parameter varies with {x}.</span>",
+  "ser.noTrend": "No significant trend.",
+  "ser.exLabel": "Example: synthetic series {name}",
+  "csv.fit": "time,I_experimental,I_model,residual",
+  "csv.ser.file": "file", "csv.ser.atBound": "at_bound",
+  "rep.title": "TL and TM fitting", "rep.file": "File", "rep.model": "Model", "rep.date": "Date",
+  "rep.redchi": "reduced chi2", "rep.dof": "d.o.f.",
+  "rep.head": "Parameter\tValue\tUncertainty (1σ)\tStatus",
+  "rep.fitted": "fitted", "rep.fixed": "fixed", "rep.corr": "Correlations",
+  "rep.theta": "Definition of the θ of this model ({model})",
+  "rep.serTitle": "Series of transients", "rep.serVar": "Series variable",
+  "rep.norm": "Normalization by I(0)", "rep.yes": "yes", "rep.no": "no",
+  "rep.window": "Window: {a} to {b} s", "rep.method": "Method",
+  "rep.fixedPars": "Fixed parameters", "rep.freePars": "Free parameters (bounds)", "rep.to": "to",
+  "rep.results": "Results", "rep.stats": "Series statistics",
+  "rep.prop": "  {n} ({l}): {n}/x through the origin = {v} ± {e}",
+  "rep.propLine": "      line with intercept: slope {s} ± {se}, intercept {i} ± {ie}, R² = {r2}",
+  "rep.const": "  {n} ({l}): mean {m} ± {sd} (standard deviation), standard error {sem}, n = {k}",
+  "rep.constLine": "      slope with x: {s} ± {se}{sig}", "rep.significant": " (significant)",
+  "file.base": "transient", "file.fit": "_fit.csv", "file.report": "_report.txt",
+  "file.serBase": "series", "file.ser": "_series.csv", "file.serReport": "_series_report.txt"
+},
+pt: {
+  "app.title": "Ajuste de TL e TM",
+  "app.sub": "Transientes de lente térmica (TL) e espelho térmico (TM) resolvidos no tempo",
+  "mode.group": "Modo", "mode.one": "Um transiente", "mode.series": "Série",
+  "ser.title": "Série de transientes",
+  "ser.drop": "Arraste a pasta ou os arquivos aqui<br><small>ou use os botões abaixo</small>",
+  "ser.openDir": "Abrir pasta", "ser.openFiles": "Escolher arquivos",
+  "ser.use": "Usar", "ser.useTitle": "Incluir na série", "ser.file": "Arquivo",
+  "ser.hint": "A potência vem do nome do arquivo (por exemplo, 150mW ou 0,2W) ou do cabeçalho (“Potência: 150 mW”). Corrija na tabela se preciso. São usadas as duas primeiras colunas: tempo e sinal.",
+  "ser.variable": "Variável da série", "ser.xdefault": "Potência (mW)",
+  "ser.norm": "Normalizar cada transiente por I(t=0)",
+  "win.from": "Janela do ajuste: de", "win.to": "a", "win.start": "início", "win.end": "fim",
+  "examples": "Exemplos:",
+  "one.title": "Transiente",
+  "one.drop": "Arraste o arquivo aqui ou clique para abrir<br><small>.dat, .txt ou .csv com tempo e intensidade</small>",
+  "one.time": "Tempo", "one.intensity": "Intensidade", "one.norm": "Normalizar por I(t=0)",
+  "model.title": "Modelo", "model.fluid": "Fluido:",
+  "par.free": "Livre", "par.freeTitle": "Marque para ajustar o parâmetro", "par.param": "Parâmetro",
+  "par.value": "Valor", "par.min": "Mín", "par.max": "Máx",
+  "par.hint": "Marque “Livre” nos parâmetros a ajustar. Parâmetros positivos com limites que cobrem mais de duas décadas são explorados em escala logarítmica.",
+  "par.fitAria": "ajustar {label}", "par.def": "def.",
+  "theta.box": "<b>{label}</b> deste modelo [{unit}]:",
+  "theta.here": "{label} aqui é {def} [{unit}].",
+  "opt.title": "Otimização",
+  "opt.auto": "Automático (varredura em dois níveis quando possível)",
+  "opt.psolm": "Enxame (PSO) e depois Levenberg–Marquardt",
+  "opt.pso": "Só enxame (PSO)",
+  "opt.lm": "Só Levenberg–Marquardt, a partir dos valores atuais",
+  "opt.particles": "Partículas", "opt.iters": "Iterações", "opt.runs": "Rodadas",
+  "opt.runsTitle": "O ajuste é repetido com sementes diferentes e fica o melhor resultado",
+  "opt.acc": "Precisão numérica", "opt.accNormal": "Normal", "opt.accHigh": "Alta (2×, mais lenta)",
+  "hint.auto": "Os θ (e I0) entram linearmente na fase: o programa varre os demais parâmetros livres e ajusta os θ em cada ponto. Com mais de dois parâmetros livres além dos θ e de I0, usa o enxame, com as opções abaixo.",
+  "hint.pso+lm": "Enxame para a busca global, repetido em várias rodadas, e Levenberg–Marquardt para refinar.",
+  "hint.pso": "Só o enxame, sem refinamento local nem incertezas.",
+  "hint.lm": "Refinamento local a partir dos valores atuais. Rápido, mas depende de um bom ponto de partida.",
+  "btn.sim": "Calcular curva", "btn.fit": "Ajustar", "btn.fitSeries": "Ajustar série", "btn.stop": "Parar",
+  "btn.exp": "Exportar ajuste (.csv)", "btn.rep": "Relatório (.txt)",
+  "btn.sexp": "Exportar resultados (.csv)", "btn.srep": "Relatório da série (.txt)",
+  "st.evals": "avaliações", "st.time": "tempo", "st.transients": "transientes", "st.fitted": "ajustados",
+  "plot.intensity": "Intensidade normalizada", "plot.exp": "experimental", "plot.model": "modelo",
+  "plot.emptyMain": "Nenhum transiente carregado.<br>Abra um arquivo ou escolha um exemplo à esquerda.",
+  "plot.res": "Resíduos", "plot.conv": "Convergência do χ²", "plot.search": "Busca",
+  "plot.emptySwarm": "Os pontos da busca aparecem aqui durante o ajuste.<br>Cor: χ² (escuro = melhor).",
+  "plot.log": "Registro", "plot.serT": "Transientes e ajustes",
+  "plot.emptySer": "Nenhuma série carregada.<br>Abra uma pasta ou escolha um exemplo à esquerda.",
+  "plot.results": "Resultados",
+  "ax.time": "tempo (s)", "ax.signal": "sinal",
+  "ax.evals": "avaliações do modelo  (azul: busca, vinho: LM)",
+  "state.start": "Abra um transiente para começar",
+  "state.ready": "Pronto para calcular ou ajustar",
+  "state.computing": "Calculando…",
+  "state.computed": "Curva calculada em {ms} ms ({na}×{ng} nós)",
+  "state.computeError": "Erro ao calcular",
+  "state.queued": "Na fila: outro ajuste está rodando no servidor",
+  "state.run": "Rodada {k} de {n}, ",
+  "state.pso": "PSO: iteração {i} de {n}", "state.grid": "Varredura: ponto {i} de {n}",
+  "state.lm": "refinando com Levenberg–Marquardt",
+  "state.done": "Ajuste concluído", "state.stopped": "Ajuste interrompido", "state.error": "Ajuste falhou — veja o registro",
+  "sstate.start": "Abra uma pasta ou escolha uma série de exemplo",
+  "sstate.ready": "Pronto para ajustar a série", "sstate.readyEx": "{label}: clique em Ajustar série",
+  "sstate.queued": "Na fila: outro ajuste está rodando",
+  "sstate.item": "Transiente {k} de {n} ({name}): {what}",
+  "sstate.grid": "varredura {i} de {n}", "sstate.pso": "PSO {i} de {n}", "sstate.lm": "refinando",
+  "sstate.done": "Série concluída", "sstate.stopped": "Série interrompida", "sstate.error": "A série falhou; veja o registro",
+  "log.loaded": "Arquivo {name} carregado ({n} pontos).",
+  "log.readError": "Não foi possível ler o arquivo: {err}",
+  "log.error": "Erro: {err}",
+  "log.fluid": "Fluido: {name} ({vals}).",
+  "log.needData": "Carregue um transiente (pelo menos 3 pontos na janela) antes de ajustar.",
+  "log.needFree": "Marque ao menos um parâmetro em “Livre”.",
+  "log.fitStart": "Ajuste iniciado: {names} livres; {n} pontos.",
+  "log.redchi": "χ² reduzido = {v} ({dof} graus de liberdade).",
+  "log.atBound": "Atenção: {names} terminou no limite do intervalo; amplie o intervalo e ajuste de novo.",
+  "log.corr": "Correlação forte entre {a} e {b} ({c}): esses parâmetros são pouco distinguíveis com estes dados.",
+  "log.noFiles": "Nenhum arquivo .dat, .txt, .csv ou .tsv encontrado.",
+  "log.serLoaded": "{n} transientes carregados.",
+  "log.serBad": " Não foi possível ler: {list}.",
+  "log.serMiss": " {n} sem potência identificada: preencha na tabela.",
+  "log.serFar": " Os sinais não estão normalizados: a normalização por I(t=0) foi ligada.",
+  "log.scaleFree": "Com sinais normalizados pelo primeiro ponto, I0 (escala) ficou livre para absorver o ruído desse ponto.",
+  "log.needSeries": "Abra uma pasta ou escolha arquivos antes de ajustar a série.",
+  "err.cols": "menos de duas colunas",
+  "err.invalid": "valor inválido em \"{label}\"",
+  "file.info": "{name}: {n} pontos, t de {a} a {b} s",
+  "files.count": "{n} arquivos", "files.countEx": "{label} ({n} arquivos)",
+  "files.useAria": "usar {name}", "files.of": "{a} de {b}",
+  "src.name": "lido do nome", "src.header": "lido do cabeçalho",
+  "src.name_nounit": "lido do nome (sem unidade: mW)", "src.none": "não identificado",
+  "res.atBound": " no limite", "res.endedAtBound": "terminou no limite do intervalo",
+  "res.file": "Arquivo", "res.error": "erro", "res.pending": "pendente", "res.fitting": "ajustando",
+  "ser.legend": "cor: {x} de {a} (claro) a {b} (escuro)",
+  "ser.fitFirst": "Ajuste a série para ver os parâmetros em função de {x}.",
+  "ser.noneFitted": "Nenhum transiente ajustado com {x} definida.",
+  "ser.slope0": "<b>{p} / {x}</b> = {v} ± {e} (inclinação da reta pela origem).",
+  "ser.meanRatio": "Média dos {n} valores: {m} ± {sd} (desvio-padrão).",
+  "ser.line0": "Reta pela origem: <b>{p} / {x} = {v} ± {e}</b>.",
+  "ser.line": "Reta com intercepto: inclinação {s} ± {se}, intercepto {i} ± {ie}",
+  "ser.interceptWarn": " <span class=\"warn\">O intercepto difere de zero: a dependência pode não ser linear.</span>",
+  "ser.mean": "<b>Média: {m} ± {sd}</b> (desvio-padrão; erro da média {sem}), {n} transientes.",
+  "ser.slopeWith": "Inclinação com {x}: {s} ± {se}. ",
+  "ser.trend": "<span class=\"warn\">Tendência significativa: o parâmetro varia com {x}.</span>",
+  "ser.noTrend": "Sem tendência significativa.",
+  "ser.exLabel": "Exemplo: série sintética {name}",
+  "csv.fit": "tempo,I_experimental,I_modelo,residuo",
+  "csv.ser.file": "arquivo", "csv.ser.atBound": "no_limite",
+  "rep.title": "Ajuste de TL e TM", "rep.file": "Arquivo", "rep.model": "Modelo", "rep.date": "Data",
+  "rep.redchi": "chi2 reduzido", "rep.dof": "g.l.",
+  "rep.head": "Parâmetro\tValor\tIncerteza (1σ)\tStatus",
+  "rep.fitted": "ajustado", "rep.fixed": "fixo", "rep.corr": "Correlações",
+  "rep.theta": "Definição dos θ deste modelo ({model})",
+  "rep.serTitle": "Série de transientes", "rep.serVar": "Variável da série",
+  "rep.norm": "Normalização por I(0)", "rep.yes": "sim", "rep.no": "não",
+  "rep.window": "Janela: {a} a {b} s", "rep.method": "Método",
+  "rep.fixedPars": "Parâmetros fixos", "rep.freePars": "Parâmetros livres (limites)", "rep.to": "a",
+  "rep.results": "Resultados", "rep.stats": "Estatística da série",
+  "rep.prop": "  {n} ({l}): {n}/x pela origem = {v} ± {e}",
+  "rep.propLine": "      reta com intercepto: inclinação {s} ± {se}, intercepto {i} ± {ie}, R² = {r2}",
+  "rep.const": "  {n} ({l}): média {m} ± {sd} (desvio-padrão), erro da média {sem}, n = {k}",
+  "rep.constLine": "      inclinação com x: {s} ± {se}{sig}", "rep.significant": " (significativa)",
+  "file.base": "transiente", "file.fit": "_ajuste.csv", "file.report": "_relatorio.txt",
+  "file.serBase": "serie", "file.ser": "_serie.csv", "file.serReport": "_serie_relatorio.txt"
+}};
+const LANG_KEY = "tlfit-lang";
+function systemLang(){
+  const prefs = (navigator.languages && navigator.languages.length) ? navigator.languages : [navigator.language || "en"];
+  return String(prefs[0] || "en").toLowerCase().startsWith("pt") ? "pt" : "en";
+}
+let LANG = (() => { try { const v = localStorage.getItem(LANG_KEY); if (v === "pt" || v === "en") return v; } catch(e){} return systemLang(); })();
+const T = (k, v={}) => String(I18N[LANG][k] ?? I18N.en[k] ?? k).replace(/\{(\w+)\}/g, (_, n) => v[n] ?? "");
+const L = x => (x && typeof x === "object") ? (x[LANG] ?? x.en ?? "") : (x ?? "");
+const locale = () => LANG === "pt" ? "pt-BR" : "en-US";
+
+function applyStatic(){
+  document.documentElement.lang = LANG === "pt" ? "pt-BR" : "en";
+  document.title = T("app.title");
+  for (const el of document.querySelectorAll("[data-i18n]")) el.textContent = T(el.dataset.i18n);
+  for (const el of document.querySelectorAll("[data-i18n-html]")) el.innerHTML = T(el.dataset.i18nHtml);
+  for (const el of document.querySelectorAll("[data-i18n-title]")) el.title = T(el.dataset.i18nTitle);
+  for (const el of document.querySelectorAll("[data-i18n-placeholder]")) el.placeholder = T(el.dataset.i18nPlaceholder);
+  for (const el of document.querySelectorAll("[data-i18n-aria]")) el.setAttribute("aria-label", T(el.dataset.i18nAria));
+  $("langPT").classList.toggle("on", LANG === "pt"); $("langEN").classList.toggle("on", LANG === "en");
+  $("langPT").setAttribute("aria-pressed", LANG === "pt"); $("langEN").setAttribute("aria-pressed", LANG === "en");
+}
+/* status lines remember their message key, so they can be re-rendered in the other language */
+const STATE = {state:null, sstate:null};
+function setState(id, key, vars={}, cls=""){
+  STATE[id] = key ? {key, vars} : null;
+  $(id).textContent = key ? T(key, vars) : ""; $(id).className = "state" + (cls ? " " + cls : "");
+}
+function setLang(l){
+  if (l === LANG) return;
+  const oldDefault = T("ser.xdefault");
+  LANG = l; try { localStorage.setItem(LANG_KEY, l); } catch(e){}
+  applyStatic();
+  if ($("xlabel").value === oldDefault) $("xlabel").value = T("ser.xdefault");
+  for (const id of ["state","sstate"]) if (STATE[id]) $(id).textContent = T(STATE[id].key, STATE[id].vars);
+  $("fit").textContent = T(S.mode === "ser" ? "btn.fitSeries" : "btn.fit");
+  $("methodhint").textContent = T("hint." + $("method").value);
+  if (S.models.length){
+    for (const o of $("model").options){ const m = S.models.find(q => q.key === o.value); if (m) o.textContent = L(m.title); }
+    relabelModel();
+  }
+  if (S.fileName && S.t) $("fileinfo").textContent = T("file.info", {name:S.fileName, n:S.t.length, a:fmt(S.t[0]), b:fmt(S.t[S.t.length-1])});
+  renderFiles(); fillParSelector(); renderResults();
+  S.mode === "ser" ? drawSeries() : redraw();
+}
+
+/* ---------- formatting ---------- */
 function fmt(x, d=4){
   if (x===null || x===undefined || !isFinite(x)) return "—";
   const a = Math.abs(x);
@@ -326,7 +632,7 @@ function fmt(x, d=4){
 const numStr = v => { if (v===null||v===undefined) return ""; const a=Math.abs(v); return (a!==0&&(a<1e-3||a>=1e6)) ? (+v.toPrecision(6)).toExponential() : String(+v.toPrecision(6)); };
 const parseNum = s => { const v = parseFloat(String(s).replace(",", ".")); return v; };
 
-/* ---------- gráfico em canvas ---------- */
+/* ---------- canvas plot ---------- */
 function niceTicks(lo, hi, n=5){
   if (!(hi>lo)) { hi = lo + 1; }
   const span = hi-lo, step0 = span/n, mag = Math.pow(10, Math.floor(Math.log10(step0)));
@@ -337,7 +643,7 @@ function niceTicks(lo, hi, n=5){
 function logTicks(lo, hi){
   const out=[]; for(let e=Math.floor(Math.log10(lo)); e<=Math.ceil(Math.log10(hi)); e++){ const v=Math.pow(10,e); if(v>=lo*0.999&&v<=hi*1.001) out.push(v); }
   if (out.length>=2) return out;
-  return niceTicks(lo, hi, 4).filter(v=>v>0);      /* menos de uma década: ticks lineares */
+  return niceTicks(lo, hi, 4).filter(v=>v>0);      /* less than one decade: linear ticks */
 }
 function tickLabel(v, log){
   if (log){ const e=Math.log10(v); if (Math.abs(e-Math.round(e))<1e-9) return "1e" + Math.round(e); }
@@ -398,12 +704,12 @@ function plot(canvas, o){
   }
   g.restore();
 }
-/* mapa "inferno" simplificado: escuro = melhor χ² */
+/* simplified "inferno" map: dark = better χ² */
 const HEAT=[[0,0,4],[40,11,84],[101,21,110],[159,42,99],[212,72,66],[245,125,21],[250,193,39],[252,255,164]];
 function heat(f){ f=Math.min(1,Math.max(0,f))*(HEAT.length-1); const i=Math.min(HEAT.length-2,Math.floor(f)), r=f-i;
   const c=HEAT[i].map((v,k)=>Math.round(v+(HEAT[i+1][k]-v)*r)); return `rgb(${c})`; }
 
-/* ---------- dados ---------- */
+/* ---------- data ---------- */
 function window_(){
   if (!S.t) return null;
   const a = parseNum($("tmin").value), b = parseNum($("tmax").value);
@@ -418,39 +724,51 @@ function applyColumns(){
   if ($("norm").checked && S.y.length){ const y0=S.y[0]; if (y0) S.y = S.y.map(v=>v/y0); }
   S.curve=null; S.curveT=null;
   $("emptyMain").hidden = true;
-  $("fileinfo").textContent = `${S.fileName}: ${S.t.length} pontos, t de ${fmt(S.t[0])} a ${fmt(S.t[S.t.length-1])} s`;
+  $("fileinfo").textContent = T("file.info", {name:S.fileName, n:S.t.length, a:fmt(S.t[0]), b:fmt(S.t[S.t.length-1])});
   updateStats(); redraw();
 }
 async function loadText(name, text){
   try{
     const r = await api("/api/parse", {text});
     S.raw = r.data; S.header = r.header; S.fileName = name;
-    const opts = r.header.map((h,i)=>`<option value="${i}">${h}</option>`).join("");
+    const opts = r.header.map((h,i)=>`<option value="${i}">${esc(h)}</option>`).join("");
     $("colT").innerHTML = opts; $("colY").innerHTML = opts;
     $("colT").value = 0; $("colY").value = Math.min(1, r.header.length-1);
     $("colrow").hidden = r.header.length <= 2;
     $("tmin").value = ""; $("tmax").value = "";
     applyColumns();
-    say(`Arquivo ${name} carregado (${r.data[0].length} pontos).`);
-    $("state").textContent = "Pronto para calcular ou ajustar"; $("state").className="state";
-  }catch(e){ say("Não foi possível ler o arquivo: " + e.message); }
+    say(T("log.loaded", {name, n:r.data[0].length}));
+    setState("state", "state.ready");
+  }catch(e){ say(T("log.readError", {err:e.message})); }
 }
 
-/* ---------- parâmetros ---------- */
+/* ---------- parameters ---------- */
+function thetaBoxHTML(m){
+  const ti = m.theta_info || {};
+  return Object.entries(ti).map(([n,d]) => {
+    const p = m.params.find(q=>q.name===n);
+    return `<div>${T("theta.box", {label:esc(p ? L(p.label) : n), unit:esc(L(d.unit))})}<br><span class="tdef">${esc(L(d.def))}</span>` +
+           (d.note ? `<br><span class="tnote">${esc(L(d.note))}</span>` : "") + `</div>`; }).join("");
+}
+function nameCellHTML(m, p){
+  const d = (m.theta_info||{})[p.name], unit = L(p.unit);
+  return `${esc(L(p.label))}${unit?` <small>${esc(unit)}</small>`:""}${d?` <span class="tq">${T("par.def")}</span>`:""}`;
+}
+function nameCellTitle(m, p){
+  const d = (m.theta_info||{})[p.name];
+  return d ? `${L(d.def)} [${L(d.unit)}]` : "";
+}
 function renderModel(){
-  const m = S.model; $("modeldesc").textContent = m.description;
+  const m = S.model; $("modeldesc").textContent = L(m.description);
   const ti = m.theta_info || {};
   $("thetabox").hidden = !Object.keys(ti).length;
-  $("thetabox").innerHTML = Object.entries(ti).map(([n,d]) => {
-    const p = m.params.find(q=>q.name===n) || {label:n};
-    return `<div><b>${esc(p.label)}</b> deste modelo [${esc(d.unit)}]:<br><span class="tdef">${esc(d.def)}</span>` +
-           (d.note ? `<br><span class="tnote">${esc(d.note)}</span>` : "") + `</div>`; }).join("");
+  $("thetabox").innerHTML = thetaBoxHTML(m);
   const tb = $("params").tBodies[0]; tb.innerHTML = "";
   for (const p of m.params){
     const tr = document.createElement("tr"); tr.dataset.name = p.name;
     tr.className = p.fit ? "free" : "fixed";
-    tr.innerHTML = `<td><input type="checkbox" class="fitchk" ${p.fit?"checked":""} aria-label="ajustar ${p.label}"></td>
-      <td class="name"${(m.theta_info||{})[p.name]?` title="${esc(m.theta_info[p.name].def)} [${esc(m.theta_info[p.name].unit)}]"`:""}>${p.label}${p.unit?` <small>${p.unit}</small>`:""}${(m.theta_info||{})[p.name]?' <span class="tq">def.</span>':""}</td>
+    tr.innerHTML = `<td><input type="checkbox" class="fitchk" ${p.fit?"checked":""}></td>
+      <td class="name"></td>
       <td><input class="num val" value="${numStr(p.value)}"></td>
       <td><input class="num lim lo" value="${numStr(p.lo ?? defLim(p.value,-1))}"></td>
       <td><input class="num lim hi" value="${numStr(p.hi ?? defLim(p.value,1))}"></td>`;
@@ -459,11 +777,31 @@ function renderModel(){
     const rr = document.createElement("tr"); rr.className="result"; rr.dataset.for=p.name; rr.hidden=true;
     rr.innerHTML = `<td></td><td colspan="4"></td>`; tb.appendChild(rr);
   }
-  const pr = m.presets || {};
-  $("presetrow").hidden = !Object.keys(pr).length;
-  $("presets").innerHTML = Object.keys(pr).map(n=>`<button class="btn preset" style="padding:2px 10px;font-size:12.5px" data-p="${n}">${n}</button>`).join(" ");
-  for (const b of $("presets").querySelectorAll("button")) b.onclick = () => applyPreset(b.dataset.p);
+  renderPresets(); relabelParams();
   fillSwarmSelectors(); S.curve=null; redraw();
+}
+/* texts of the current model in the current language (keeps the values typed in the table) */
+function relabelParams(){
+  const m = S.model;
+  for (const tr of $("params").querySelectorAll("tr[data-name]")){
+    const p = m.params.find(q=>q.name===tr.dataset.name); if (!p) continue;
+    const td = tr.querySelector("td.name"); td.innerHTML = nameCellHTML(m, p); td.title = nameCellTitle(m, p);
+    tr.querySelector(".fitchk").setAttribute("aria-label", T("par.fitAria", {label:L(p.label)}));
+  }
+}
+function renderPresets(){
+  const pr = S.model.presets || {}, lab = S.model.preset_labels || {};
+  const on = [...$("presets").querySelectorAll("button.on")].map(b=>b.dataset.p);
+  $("presetrow").hidden = !Object.keys(pr).length;
+  $("presets").innerHTML = Object.keys(pr).map(n=>`<button class="btn preset${on.includes(n)?" on":""}" style="padding:2px 10px;font-size:12.5px" data-p="${esc(n)}">${esc(L(lab[n]) || n)}</button>`).join(" ");
+  for (const b of $("presets").querySelectorAll("button")) b.onclick = () => applyPreset(b.dataset.p);
+}
+function relabelModel(){
+  const m = S.model; if (!m) return;
+  $("modeldesc").textContent = L(m.description);
+  $("thetabox").innerHTML = thetaBoxHTML(m);
+  relabelParams(); renderPresets(); fillSwarmSelectors();
+  if (S.lastResult) showResult(S.lastResult);
 }
 function applyPreset(name){
   const pr = S.model.presets[name];
@@ -474,7 +812,8 @@ function applyPreset(name){
   }
   for (const b of $("presets").querySelectorAll("button")) b.classList.toggle("on", b.dataset.p===name);
   S.curve=null; updateStats(); redraw();
-  say(`Fluido: ${name} (${Object.entries(pr.values).map(([n,v])=>labelOf(n)+" = "+numStr(v)).join(", ")}).`);
+  const label = L((S.model.preset_labels||{})[name]) || name;
+  say(T("log.fluid", {name:label, vals:Object.entries(pr.values).map(([n,v])=>labelOf(n)+" = "+numStr(v)).join(", ")}));
 }
 function defLim(v, s){ if (v===0) return s*1; const a=Math.abs(v); return v>0 ? (s<0? v/10 : v*10) : (s<0? v*10 : v/10); }
 function readParams(){
@@ -489,14 +828,15 @@ function readParams(){
       free.push({name:n, lo, hi});
     }
   }
-  if (bad) throw new Error(`valor inválido em "${labelOf(bad)}"`);
+  if (bad) throw new Error(T("err.invalid", {label:labelOf(bad)}));
   return {vals, free};
 }
 const esc = x => String(x).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const labelOf = n => (S.model.params.find(p=>p.name===n)||{label:n}).label;
+const labelOf = n => { const p = S.model && S.model.params.find(q=>q.name===n); return p ? L(p.label) : n; };
+const unitOf = n => { const p = S.model && S.model.params.find(q=>q.name===n); return p ? L(p.unit) : ""; };
 function thetaReminder(n){
   const d = (S.model.theta_info||{})[n]; if (!d) return "";
-  return `<span class="tnote" style="color:var(--muted)">${esc(labelOf(n))} aqui é ${esc(d.def)} [${esc(d.unit)}].</span>`;
+  return `<span class="tnote" style="color:var(--muted)">${esc(T("theta.here", {label:labelOf(n), def:L(d.def), unit:L(d.unit)}))}</span>`;
 }
 function setValue(n, v){ const tr=$("params").querySelector(`tr[data-name="${n}"]`); if (tr) tr.querySelector(".val").value = numStr(v); }
 function showResult(res){
@@ -509,7 +849,7 @@ function showResult(res){
     const td = rr.cells[1];
     td.className = atb.includes(n) || rel>50 ? "warn" : "";
     td.textContent = `${fmt(v,5)} ± ${fmt(s,2)}` + (isFinite(rel)?` (${rel<0.1?rel.toFixed(2):rel.toPrecision(2)} %)`:"") +
-                     (atb.includes(n) ? " no limite" : "");
+                     (atb.includes(n) ? T("res.atBound") : "");
     rr.hidden=false;
   }
 }
@@ -517,12 +857,12 @@ function fillSwarmSelectors(){
   const free=[...$("params").querySelectorAll("tr[data-name]")].filter(tr=>tr.querySelector(".fitchk").checked).map(tr=>tr.dataset.name);
   for (const [id,def] of [["sx",0],["sy",1]]){
     const sel=$(id), cur=sel.value;
-    sel.innerHTML = free.map(n=>`<option value="${n}">${labelOf(n)}</option>`).join("");
+    sel.innerHTML = free.map(n=>`<option value="${n}">${esc(labelOf(n))}</option>`).join("");
     sel.value = free.includes(cur) ? cur : (free[Math.min(def, free.length-1)] || "");
   }
 }
 
-/* ---------- desenho ---------- */
+/* ---------- drawing ---------- */
 function updateStats(chi){
   const w = window_();
   if (!w || !S.curve || S.curveT!==w.t.length){ $("chi").textContent = chi!==undefined?fmt(chi):"—"; $("r2").textContent="—"; return; }
@@ -538,13 +878,13 @@ function redraw(){
     if (outT.length) series.push({type:"points", x:outT, y:outY, color:"#9aa6b2", size:2.2});
     series.push({type:"points", x:w.t, y:w.y, color:getVar("--data"), size:2.6});
     if (S.curve && S.curve.length===w.t.length) series.push({type:"line", x:w.t, y:S.curve, color:getVar("--fit"), width:2});
-    plot($("cMain"), {series, xlabel:"tempo (s)", ylabel:"I(t)/I(0)"});
+    plot($("cMain"), {series, xlabel:T("ax.time"), ylabel:"I(t)/I(0)"});
     if (S.curve && S.curve.length===w.t.length){
       const r = w.y.map((v,i)=>v-S.curve[i]);
       plot($("cRes"), {series:[{type:"points", x:w.t, y:r, color:getVar("--data"), size:2}], zero:true, ysym:true, padT:6, xr:[Math.min(...S.t), Math.max(...S.t)]});
     } else clear($("cRes"));
   } else if (S.curve && S.simT){
-    plot($("cMain"), {series:[{type:"line", x:S.simT, y:S.curve, color:getVar("--fit")}], xlabel:"tempo (s)", ylabel:"I(t)/I(0)"});
+    plot($("cMain"), {series:[{type:"line", x:S.simT, y:S.curve, color:getVar("--fit")}], xlabel:T("ax.time"), ylabel:"I(t)/I(0)"});
   }
   drawJob();
 }
@@ -555,18 +895,18 @@ function drawJob(){
   const j = S.job;
   if (!j || !j.history || !j.history.length){ clear($("cConv")); }
   else {
-    /* um trecho por fase contígua; cada trecho começa no último ponto do anterior */
+    /* one segment per contiguous phase; each segment starts at the last point of the previous one */
     const series=[], H=j.history; let seg=[H[0]];
     const flush = (ph) => { if (seg.length>1 || series.length===0)
-      series.push({type:"line", x:seg.map(h=>h[0]), y:seg.map(h=>h[1]), color: ph==="busca"?getVar("--data"):getVar("--fit"), width:2}); };
-    const kind = h => (h[2]==="pso"||h[2]==="grade") ? "busca" : "lm";
+      series.push({type:"line", x:seg.map(h=>h[0]), y:seg.map(h=>h[1]), color: ph==="search"?getVar("--data"):getVar("--fit"), width:2}); };
+    const kind = h => (h[2]==="pso"||h[2]==="grid") ? "search" : "lm";
     for (let i=1;i<H.length;i++){
       const ph=kind(H[i]), prev=kind(seg[seg.length-1]);
       if (ph!==prev && seg.length>1){ flush(prev); seg=[seg[seg.length-1]]; }
       seg.push(H[i]);
     }
     flush(kind(seg[seg.length-1]));
-    plot($("cConv"), {series, logy:true, xlabel:"avaliações do modelo  (azul: busca, vinho: LM)", padL:52});
+    plot($("cConv"), {series, logy:true, xlabel:T("ax.evals"), padL:52});
   }
   const sx=$("sx").value, sy=$("sy").value;
   if (!j || !j.swarm || !sx){ clear($("cSwarm")); $("emptySwarm").hidden = !!(j&&j.swarm); return; }
@@ -578,13 +918,13 @@ function drawJob(){
   const chis = j.swarm_chi.filter(isFinite).map(Math.log10);
   const cmin=Math.min(...chis), cmax=Math.max(...chis);
   for (let k=0;k<j.trail.length-1;k++){
-    const T=j.trail[k]; series.push({type:"points", x:T.map(r=>r[ix]), y:T.map((r,i)=>fy?r[iy]:j.swarm_chi[i]), color:"#9aa6b2", size:1.6, alpha:0.15+0.4*k/j.trail.length});
+    const Tr=j.trail[k]; series.push({type:"points", x:Tr.map(r=>r[ix]), y:Tr.map((r,i)=>fy?r[iy]:j.swarm_chi[i]), color:"#9aa6b2", size:1.6, alpha:0.15+0.4*k/j.trail.length});
   }
   series.push({type:"points", x:j.swarm.map(r=>r[ix]), y:j.swarm.map((r,i)=>fy && iy!==ix ? r[iy] : j.swarm_chi[i]),
                colors:j.swarm_chi.map(c=>heat(cmax>cmin?(Math.log10(c)-cmin)/(cmax-cmin)*0.85:0.3)), size:4});
   if (j.best) series.push({type:"points", x:[j.best[sx]], y:[fy && iy!==ix ? j.best[sy] : j.best_chi], color:"rgba(0,0,0,0)", size:3, ring:getVar("--fit")});
   const sameAxis = !fy || iy===ix;
-  const ext = (k, f) => { const v=[]; for (const T of j.trail.concat([j.swarm])) for (const r of T) if (isFinite(r[k])) v.push(r[k]);
+  const ext = (k, f) => { const v=[]; for (const Tr of j.trail.concat([j.swarm])) for (const r of Tr) if (isFinite(r[k])) v.push(r[k]);
     let a=Math.min(...v), b=Math.max(...v);
     if (f.log){ a=Math.log10(a); b=Math.log10(b); const m=Math.max((b-a)*0.08,0.02); return [10**(a-m),10**(b+m)]; }
     const m=Math.max((b-a)*0.08,Math.abs(b)*1e-3+1e-30); return [a-m,b+m]; };
@@ -592,9 +932,10 @@ function drawJob(){
     xr:ext(ix,fx), yr: sameAxis? undefined : ext(iy,fy), xlabel:labelOf(sx), ylabel: sameAxis?"χ²":labelOf(sy)});
 }
 
-/* ---------- ações ---------- */
+/* ---------- actions ---------- */
 async function api(url, body){
-  const r = await fetch(url, body===undefined?{}:{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)});
+  const u = url + (url.includes("?") ? "&" : "?") + "lang=" + LANG;
+  const r = await fetch(u, body===undefined?{}:{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({...body, lang:LANG})});
   const j = await r.json(); if (!r.ok) throw new Error(j.error||r.statusText); return j;
 }
 function say(msg){ const l=$("log"); l.textContent += msg + "\n"; l.scrollTop = l.scrollHeight; }
@@ -604,28 +945,28 @@ async function simulate(){
     const {vals} = readParams(); const w = window_();
     let t = w ? w.t : null;
     if (!t){ const tmax = parseNum($("tmax").value) || 0.2; t = Array.from({length:201},(_,i)=>i*tmax/200); S.simT=t; }
-    $("state").textContent = "Calculando…"; $("state").className="state run";
+    setState("state", "state.computing", {}, "run");
     const r = await api("/api/simulate", {model:S.model.key, params:vals, t, accuracy:+$("acc").value});
     S.curve = r.y; S.curveT = w ? w.t.length : null;
-    $("state").textContent = `Curva calculada em ${r.ms.toFixed(0)} ms (${r.info.n_alpha}×${r.info.n_g} nós)`; $("state").className="state";
+    setState("state", "state.computed", {ms:r.ms.toFixed(0), na:r.info.n_alpha, ng:r.info.n_g});
     updateStats(); redraw(); $("exp").disabled = !w;
-  }catch(e){ say("Erro: " + e.message); $("state").textContent="Erro ao calcular"; $("state").className="state"; }
+  }catch(e){ say(T("log.error", {err:e.message})); setState("state", "state.computeError"); }
 }
 
 async function startFit(){
   const w = window_();
-  if (!w || w.t.length < 3){ say("Carregue um transiente (pelo menos 3 pontos na janela) antes de ajustar."); return; }
-  let pr; try { pr = readParams(); } catch(e){ say("Erro: "+e.message); return; }
-  if (!pr.free.length){ say("Marque ao menos um parâmetro em “Ajustar”."); return; }
+  if (!w || w.t.length < 3){ say(T("log.needData")); return; }
+  let pr; try { pr = readParams(); } catch(e){ say(T("log.error", {err:e.message})); return; }
+  if (!pr.free.length){ say(T("log.needFree")); return; }
   const options = {method:$("method").value, particles:+$("particles").value||20, iterations:+$("iters").value||30, restarts:+$("restarts").value||1};
   try{
     const r = await api("/api/fit", {model:S.model.key, params:pr.vals, free:pr.free, t:w.t, y:w.y, options, accuracy:+$("acc").value});
-    S.jobId = r.id; S.job = null; showResult(null);
+    S.jobId = r.id; S.job = null; S.lastResult = null; showResult(null);
     $("log").textContent = "";
-    say(`Ajuste iniciado: ${pr.free.map(f=>labelOf(f.name)).join(", ")} livres; ${w.t.length} pontos.`);
+    say(T("log.fitStart", {names:pr.free.map(f=>labelOf(f.name)).join(", "), n:w.t.length}));
     setRunning(true);
     S.poll = setInterval(pollJob, 400);
-  }catch(e){ say("Erro: " + e.message); }
+  }catch(e){ say(T("log.error", {err:e.message})); }
 }
 function setRunning(on){
   $("fit").disabled = on; $("sim").disabled = on; $("stop").disabled = !on;
@@ -639,10 +980,16 @@ async function pollJob(){
   for (const m of j.log.slice(lastLog)) say(m); lastLog = j.log.length;
   $("neval").textContent = j.n_eval; $("elapsed").textContent = j.elapsed.toFixed(1) + " s";
   const R = j.n_runs||1, per = $("method").value==="pso" ? 1 : 0.85;
-  const searching = j.phase==="pso" || j.phase==="grade";
+  const searching = j.phase==="pso" || j.phase==="grid";
   const frac = ((j.run||0) + (searching ? (j.iteration/(j.n_iter||1))*per : 0.95)) / R;
   $("prog").style.width = (j.status==="running" ? frac*100 : 100) + "%";
-  $("state").textContent = j.status==="queued" ? "Na fila: outro ajuste está rodando no servidor" : j.status!=="running" ? "" : ((R>1 ? `Rodada ${(j.run||0)+1} de ${R}, ` : "") + (j.phase==="pso" ? `PSO: iteração ${j.iteration} de ${j.n_iter}` : j.phase==="grade" ? `Varredura: ponto ${j.iteration} de ${j.n_iter}` : "refinando com Levenberg–Marquardt"));
+  if (j.status==="queued") setState("state", "state.queued", {}, "run");
+  else if (j.status==="running"){
+    const run = R>1 ? T("state.run", {k:(j.run||0)+1, n:R}) : "";
+    const key = j.phase==="pso" ? "state.pso" : j.phase==="grid" ? "state.grid" : "state.lm";
+    /* the run prefix goes in front of the phase text, in the current language */
+    STATE.state = null; $("state").textContent = run + T(key, {i:j.iteration, n:j.n_iter}); $("state").className = "state run";
+  }
   if (j.best_curve){ S.curve = j.best_curve; S.curveT = j.best_curve.length; }
   updateStats(j.best_chi); redraw();
   if (j.status !== "running" && j.status !== "queued"){
@@ -654,15 +1001,14 @@ async function pollJob(){
       showResult(res); updateStats(); redraw();
       $("exp").disabled = false; $("rep").disabled = false;
       if (res.extra){
-        say(`χ² reduzido = ${fmt(res.extra.reduced_chi2)} (${res.extra.dof} graus de liberdade).`);
-        if (res.extra.at_bound.length) say(`Atenção: ${res.extra.at_bound.map(labelOf).join(", ")} terminou no limite do intervalo; amplie o intervalo e ajuste de novo.`);
+        say(T("log.redchi", {v:fmt(res.extra.reduced_chi2), dof:res.extra.dof}));
+        if (res.extra.at_bound.length) say(T("log.atBound", {names:res.extra.at_bound.map(labelOf).join(", ")}));
         const names=j.free.map(f=>f.name), C=res.extra.corr;
         for (let a=0;a<names.length;a++) for (let b=a+1;b<names.length;b++)
-          if (Math.abs(C[a][b])>0.95) say(`Correlação forte entre ${labelOf(names[a])} e ${labelOf(names[b])} (${C[a][b].toFixed(3)}): esses parâmetros são pouco distinguíveis com estes dados.`);
+          if (Math.abs(C[a][b])>0.95) say(T("log.corr", {a:labelOf(names[a]), b:labelOf(names[b]), c:C[a][b].toFixed(3)}));
       }
     }
-    $("state").textContent = {done:"Ajuste concluído", stopped:"Ajuste interrompido", error:"Ajuste falhou — veja o registro"}[j.status];
-    $("state").className = "state " + (j.status==="done"?"done":"");
+    setState("state", {done:"state.done", stopped:"state.stopped", error:"state.error"}[j.status], {}, j.status==="done"?"done":"");
   }
 }
 
@@ -670,35 +1016,35 @@ function download(name, text){
   const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([text],{type:"text/plain"})); a.download=name; a.click();
   setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
 }
-function baseName(){ return (S.fileName||"transiente").replace(/\.[^.]+$/,""); }
+function baseName(){ return (S.fileName||T("file.base")).replace(/\.[^.]+$/,""); }
 function exportCSV(){
   const w = window_(); if (!w || !S.curve) return;
-  let s = "tempo,I_experimental,I_modelo,residuo\n";
+  let s = T("csv.fit") + "\n";
   for (let i=0;i<w.t.length;i++) s += `${w.t[i]},${w.y[i]},${S.curve[i]},${w.y[i]-S.curve[i]}\n`;
-  download(baseName()+"_ajuste.csv", s);
+  download(baseName()+T("file.fit"), s);
 }
 function thetaText(){
   const ti = S.model.theta_info || {}; if (!Object.keys(ti).length) return "";
-  let s = `\nDefinição dos θ deste modelo (${S.model.title})\n`;
-  for (const [n,d] of Object.entries(ti)) s += `  ${n} (${labelOf(n)}) [${d.unit}]: ${d.def}\n` + (d.note ? `      ${d.note}\n` : "");
+  let s = "\n" + T("rep.theta", {model:L(S.model.title)}) + "\n";
+  for (const [n,d] of Object.entries(ti)) s += `  ${n} (${labelOf(n)}) [${L(d.unit)}]: ${L(d.def)}\n` + (d.note ? `      ${L(d.note)}\n` : "");
   return s;
 }
 function exportReport(){
   const {vals} = readParams(), res = S.lastResult;
-  let s = `Ajuste de TL e TM\nArquivo: ${S.fileName}\nModelo: ${S.model.title}\nData: ${new Date().toLocaleString("pt-BR")}\n\n`;
-  s += `chi2 = ${res?res.chi2:"—"}\n`; if (res&&res.extra) s += `chi2 reduzido = ${res.extra.reduced_chi2} (${res.extra.dof} g.l.)\n`;
-  s += `\nParâmetro\tValor\tIncerteza (1σ)\tStatus\n`;
+  let s = `${T("rep.title")}\n${T("rep.file")}: ${S.fileName}\n${T("rep.model")}: ${L(S.model.title)}\n${T("rep.date")}: ${new Date().toLocaleString(locale())}\n\n`;
+  s += `chi2 = ${res?res.chi2:"—"}\n`; if (res&&res.extra) s += `${T("rep.redchi")} = ${res.extra.reduced_chi2} (${res.extra.dof} ${T("rep.dof")})\n`;
+  s += `\n${T("rep.head")}\n`;
   for (const p of S.model.params){
-    const sig = res&&res.sigma ? res.sigma[p.name] : undefined;
-    s += `${p.name} (${p.label}${p.unit?", "+p.unit:""})\t${vals[p.name]}\t${sig!==undefined?sig:""}\t${sig!==undefined?"ajustado":"fixo"}\n`;
+    const sig = res&&res.sigma ? res.sigma[p.name] : undefined, unit = L(p.unit);
+    s += `${p.name} (${L(p.label)}${unit?", "+unit:""})\t${vals[p.name]}\t${sig!==undefined?sig:""}\t${sig!==undefined?T("rep.fitted"):T("rep.fixed")}\n`;
   }
   s += thetaText();
-  if (res&&res.extra&&res.extra.corr){ const n=Object.keys(res.sigma); s += `\nCorrelações\n\t${n.join("\t")}\n`;
+  if (res&&res.extra&&res.extra.corr){ const n=Object.keys(res.sigma); s += `\n${T("rep.corr")}\n\t${n.join("\t")}\n`;
     res.extra.corr.forEach((r,i)=> s += n[i]+"\t"+r.map(v=>v.toFixed(4)).join("\t")+"\n"); }
-  download(baseName()+"_relatorio.txt", s);
+  download(baseName()+T("file.report"), s);
 }
 
-/* ---------- série de transientes ---------- */
+/* ---------- series of transients ---------- */
 S.mode = "one";
 S.ser = {files:[], job:null, jobId:null, poll:null, sel:null, lastLog:0};
 const DATA_EXT = /\.(dat|txt|csv|tsv)$/i;
@@ -710,14 +1056,14 @@ function setMode(m){
   $("modeOne").setAttribute("aria-pressed", !ser); $("modeSer").setAttribute("aria-pressed", ser);
   $("secOne").hidden = ser; $("secSer").hidden = !ser;
   $("mainOne").hidden = ser; $("mainSer").hidden = !ser;
-  $("fit").textContent = ser ? "Ajustar série" : "Ajustar";
+  $("fit").textContent = T(ser ? "btn.fitSeries" : "btn.fit");
   for (const id of ["sim","exp","rep"]) $(id).hidden = ser;
   for (const id of ["sexp","srep"]) $(id).hidden = !ser;
   if (ser) applyScaleSuggestion();
   requestAnimationFrame(() => ser ? drawSeries() : redraw());
 }
 
-/* lê uma pasta arrastada (entradas de diretório) ou arquivos soltos */
+/* reads a dragged folder (directory entries) or loose files */
 async function entriesToFiles(entry, out){
   if (entry.isFile){ out.push(await new Promise((res, rej) => entry.file(res, rej))); return; }
   if (entry.isDirectory){
@@ -731,7 +1077,7 @@ async function entriesToFiles(entry, out){
 }
 async function loadSeriesFiles(files){
   const list = [...files].filter(f => DATA_EXT.test(f.name) && !f.name.startsWith("."));
-  if (!list.length){ ssay("Nenhum arquivo .dat, .txt, .csv ou .tsv encontrado."); return; }
+  if (!list.length){ ssay(T("log.noFiles")); return; }
   const texts = await Promise.all(list.map(async f => ({name:f.name, text: f.text ? await f.text() : f.content})));
   await loadSeriesTexts(texts);
 }
@@ -740,28 +1086,26 @@ async function loadSeriesTexts(texts, label){
   await Promise.all(texts.map(async ({name, text}) => {
     try {
       const r = await api("/api/parse", {text, name});
-      if (r.data.length < 2) throw new Error("menos de duas colunas");
+      if (r.data.length < 2) throw new Error(T("err.cols"));
       const ord = r.data[0].map((_,i)=>i).sort((a,b)=>r.data[0][a]-r.data[0][b]);
       out.push({name, t: ord.map(i=>r.data[0][i]), y: ord.map(i=>r.data[1][i]),
                 x: r.power, src: r.power_source, use: true});
     } catch(e){ bad.push(`${name} (${e.message})`); }
   }));
-  out.sort((a,b) => (a.x??Infinity) - (b.x??Infinity) || a.name.localeCompare(b.name, "pt-BR", {numeric:true}));
-  S.ser.files = out; S.ser.job = null; S.ser.sel = null;
-  // dados em volts (longe de 1): sugere normalizar
+  out.sort((a,b) => (a.x??Infinity) - (b.x??Infinity) || a.name.localeCompare(b.name, locale(), {numeric:true}));
+  S.ser.files = out; S.ser.job = null; S.ser.sel = null; S.ser.label = label;
+  // data in volts (far from 1): suggest normalizing
   const far = out.some(f => Math.abs(f.y[0] - 1) > 0.05);
   $("snorm").checked = far;
-  S.ser.pendingScale = far;           /* aplicado ao entrar no modo Série (a tabela é compartilhada) */
+  S.ser.pendingScale = far;           /* applied when entering Series mode (the table is shared) */
   if (S.mode === "ser") applyScaleSuggestion();
   renderFiles();
   const miss = out.filter(f => f.x == null).length;
-  ssay(`${out.length} transientes carregados.` + (bad.length ? ` Não foi possível ler: ${bad.join(", ")}.` : "") +
-       (miss ? ` ${miss} sem potência identificada: preencha na tabela.` : "") +
-       (far ? " Os sinais não estão normalizados: a normalização por I(t=0) foi ligada." : ""));
-  $("sstate").textContent = label ? `${label}: clique em Ajustar série` : "Pronto para ajustar a série"; $("sstate").className = "state";
-  if (label) $("serinfo").textContent = `${label} (${out.length} arquivos)`;
+  ssay(T("log.serLoaded", {n:out.length}) + (bad.length ? T("log.serBad", {list:bad.join(", ")}) : "") +
+       (miss ? T("log.serMiss", {n:miss}) : "") + (far ? T("log.serFar") : ""));
+  if (label) setState("sstate", "sstate.readyEx", {label}); else setState("sstate", "sstate.ready");
   $("sexp").disabled = $("srep").disabled = true;
-  try { S.ser.free = readParams().free; } catch(e){ /* parâmetros inválidos: fica para o ajuste */ }
+  try { S.ser.free = readParams().free; } catch(e){ /* invalid parameters: left for the fit */ }
   fillParSelector(); renderResults(); drawSeries();
 }
 function applyScaleSuggestion(){
@@ -769,7 +1113,7 @@ function applyScaleSuggestion(){
   S.ser.pendingScale = false;
   const sc = $("params").querySelector('tr[data-name="scale"] .fitchk');
   if (sc && !sc.checked){ sc.checked = true; sc.closest("tr").className = "free"; fillSwarmSelectors();
-    ssay("Com sinais normalizados pelo primeiro ponto, I0 (escala) ficou livre para absorver o ruído desse ponto."); }
+    ssay(T("log.scaleFree")); }
 }
 function renderFiles(){
   const fs = S.ser.files, tb = $("files").tBodies[0];
@@ -779,14 +1123,14 @@ function renderFiles(){
   fs.forEach((f, k) => {
     const tr = document.createElement("tr");
     tr.className = f.use ? "" : "off";
-    tr.innerHTML = `<td><input type="checkbox" ${f.use?"checked":""} aria-label="usar ${f.name}"></td>
-      <td class="fname">${f.name}</td><td class="${f.x==null?"nopow":""}"><input class="num" value="${f.x==null?"":numStr(f.x)}" title="${f.src?("lido do "+f.src):"não identificado"}"></td>`;
+    tr.innerHTML = `<td><input type="checkbox" ${f.use?"checked":""} aria-label="${esc(T("files.useAria", {name:f.name}))}"></td>
+      <td class="fname">${esc(f.name)}</td><td class="${f.x==null?"nopow":""}"><input class="num" value="${f.x==null?"":numStr(f.x)}" title="${esc(T("src." + (f.src || "none")))}"></td>`;
     tr.querySelector("input[type=checkbox]").onchange = e => { f.use = e.target.checked; tr.className = f.use ? "" : "off"; updateSerCounts(); drawSeries(); };
     tr.querySelector("input.num").onchange = e => { const v = parseNum(e.target.value); f.x = isFinite(v) ? v : null;
       tr.cells[2].className = f.x==null ? "nopow" : ""; drawSeries(); };
     tb.appendChild(tr);
   });
-  $("serinfo").textContent = fs.length ? `${fs.length} arquivos` : "";
+  $("serinfo").textContent = !fs.length ? "" : S.ser.label ? T("files.countEx", {label:S.ser.label, n:fs.length}) : T("files.count", {n:fs.length});
   $("emptySer").hidden = !!fs.length;
   updateSerCounts();
 }
@@ -794,7 +1138,7 @@ function shortX(){ return ($("xlabel").value || "x").trim(); }
 function xName(){ return shortX().replace(/\s*\(.*\)\s*$/, "").toLowerCase() || "x"; }
 function updateSerCounts(){
   const used = S.ser.files.filter(f=>f.use).length;
-  $("sn").textContent = S.ser.files.length ? `${used} de ${S.ser.files.length}` : "—";
+  $("sn").textContent = S.ser.files.length ? T("files.of", {a:used, b:S.ser.files.length}) : "—";
 }
 function serWindow(f){
   const a = parseNum($("stmin").value), b = parseNum($("stmax").value);
@@ -805,7 +1149,7 @@ function serWindow(f){
 }
 function ssay(msg){ const l=$("slog"); l.textContent += msg + "\n"; l.scrollTop = l.scrollHeight; }
 
-/* cor de cada transiente pela posição na série (claro → escuro = menor → maior) */
+/* colour of each transient by its position in the series (light → dark = smaller → larger) */
 function serColors(){
   const used = S.ser.files.filter(f=>f.use);
   const xs = used.map(f=>f.x).filter(v=>v!=null);
@@ -820,9 +1164,9 @@ function serColors(){
 
 async function startSeries(){
   const fs = S.ser.files.filter(f=>f.use);
-  if (!fs.length){ ssay("Abra uma pasta ou escolha arquivos antes de ajustar a série."); return; }
-  let pr; try { pr = readParams(); } catch(e){ ssay("Erro: "+e.message); return; }
-  if (!pr.free.length){ ssay("Marque ao menos um parâmetro em “Livre”."); return; }
+  if (!fs.length){ ssay(T("log.needSeries")); return; }
+  let pr; try { pr = readParams(); } catch(e){ ssay(T("log.error", {err:e.message})); return; }
+  if (!pr.free.length){ ssay(T("log.needFree")); return; }
   const items = fs.map(f => { const w = serWindow(f); return {name:f.name, t:w.t, y:w.y, x:f.x}; });
   const options = {method:$("method").value, particles:+$("particles").value||20, iterations:+$("iters").value||30, restarts:+$("restarts").value||1};
   try {
@@ -834,14 +1178,15 @@ async function startSeries(){
     $("sstate").className = "state run";
     fillParSelector();
     S.ser.poll = setInterval(pollSeries, 500);
-  } catch(e){ ssay("Erro: " + e.message); }
+  } catch(e){ ssay(T("log.error", {err:e.message})); }
 }
 function fillParSelector(){
+  if (!S.model) return;
   const free = (S.ser.free || []).map(f=>f.name), cur = $("spar").value, opts = [];
   const lin = new Set(S.model.proportional || S.model.linear || []);
   for (const n of free){
-    opts.push(`<option value="${n}">${labelOf(n)}</option>`);
-    if (lin.has(n)) opts.push(`<option value="${n}/x">${labelOf(n)} / ${xName()}</option>`);
+    opts.push(`<option value="${n}">${esc(labelOf(n))}</option>`);
+    if (lin.has(n)) opts.push(`<option value="${n}/x">${esc(labelOf(n))} / ${esc(xName())}</option>`);
   }
   $("spar").innerHTML = opts.join("");
   const vals = [...$("spar").options].map(o=>o.value);
@@ -852,46 +1197,48 @@ async function pollSeries(){
   let j; try { j = await api("/api/batch/" + S.ser.jobId); } catch(e){ return; }
   S.ser.job = j;
   for (const m of j.log.slice(S.ser.lastLog)) ssay(m); S.ser.lastLog = j.log.length;
-  const done = j.results.filter(r=>r.status==="ok"||r.status==="erro").length;
-  $("sdone").textContent = `${done} de ${j.n_items}`;
+  const done = j.results.filter(r=>r.status==="ok"||r.status==="error").length;
+  $("sdone").textContent = T("files.of", {a:done, b:j.n_items});
   $("selapsed").textContent = j.elapsed.toFixed(1) + " s";
-  const sub = (j.phase==="grade"||j.phase==="pso") ? (j.iteration/(j.n_iter||1))*0.85 : (j.phase ? 0.9 : 0);
+  const sub = (j.phase==="grid"||j.phase==="pso") ? (j.iteration/(j.n_iter||1))*0.85 : (j.phase ? 0.9 : 0);
   const frac = j.status==="running" ? (done + (done<j.n_items ? sub : 0)) / j.n_items : 1;
   $("sprog").style.width = (frac*100) + "%";
-  if (j.status === "queued") $("sstate").textContent = "Na fila: outro ajuste está rodando";
+  if (j.status === "queued") setState("sstate", "sstate.queued", {}, "run");
   else if (j.status === "running"){
     const it = j.results[j.item] || {};
-    const what = j.phase==="grade" ? `varredura ${j.iteration} de ${j.n_iter}` : j.phase==="pso" ? `PSO ${j.iteration} de ${j.n_iter}` : "refinando";
-    $("sstate").textContent = `Transiente ${j.item+1} de ${j.n_items} (${it.name||""}): ${what}`;
+    const what = j.phase==="grid" ? T("sstate.grid", {i:j.iteration, n:j.n_iter}) : j.phase==="pso" ? T("sstate.pso", {i:j.iteration, n:j.n_iter}) : T("sstate.lm");
+    STATE.sstate = null;
+    $("sstate").textContent = T("sstate.item", {k:j.item+1, n:j.n_items, name:it.name||"", what}); $("sstate").className = "state run";
   }
   renderResults(); drawSeries();
   if (j.status !== "running" && j.status !== "queued"){
     clearInterval(S.ser.poll);
     $("fit").disabled = false; $("stop").disabled = true;
     $("sexp").disabled = $("srep").disabled = !done;
-    $("sstate").textContent = {done:"Série concluída", stopped:"Série interrompida", error:"A série falhou; veja o registro"}[j.status];
-    $("sstate").className = "state " + (j.status==="done" ? "done" : "");
+    setState("sstate", {done:"sstate.done", stopped:"sstate.stopped", error:"sstate.error"}[j.status], {}, j.status==="done" ? "done" : "");
   }
 }
 function resultFor(f){
   const j = S.ser.job; if (!j) return null;
   const k = (S.ser.items||[]).indexOf(f); return k>=0 ? j.results[k] : null;
 }
+function statusText(st){ return {error:T("res.error"), pending:T("res.pending"), fitting:T("res.fitting")}[st] || st; }
 function renderResults(){
+  if (!S.model) return;
   const th = $("results").tHead, tb = $("results").tBodies[0];
   const free = (S.ser.free || []).map(f=>f.name);
-  const cols = ["Arquivo", shortX(), ...free.map(labelOf), "χ²", "R²"];
-  th.innerHTML = "<tr>" + cols.map(c=>`<th>${c}</th>`).join("") + "</tr>";
+  const cols = [T("res.file"), shortX(), ...free.map(labelOf), "χ²", "R²"];
+  th.innerHTML = "<tr>" + cols.map(c=>`<th>${esc(c)}</th>`).join("") + "</tr>";
   const col = serColors();
   tb.innerHTML = "";
   S.ser.files.filter(f=>f.use).forEach(f => {
     const r = resultFor(f), tr = document.createElement("tr");
     if (S.ser.sel === f) tr.className = "sel";
-    let cells = `<td><span class="swatch" style="background:${col.get(f)}"></span>${f.name}</td><td>${f.x==null?"—":fmt(f.x,4)}</td>`;
+    let cells = `<td><span class="swatch" style="background:${col.get(f)}"></span>${esc(f.name)}</td><td>${f.x==null?"—":fmt(f.x,4)}</td>`;
     for (const n of free){
-      if (!r || r.status !== "ok"){ cells += `<td class="pend">${r ? (r.status==="erro" ? "erro" : r.status) : "—"}</td>`; continue; }
+      if (!r || r.status !== "ok"){ cells += `<td class="pend">${r ? statusText(r.status) : "—"}</td>`; continue; }
       const v = r.params[n], e = (r.sigma||{})[n], w = (r.at_bound||[]).includes(n);
-      cells += `<td class="${w?"warn":""}" title="${w?"terminou no limite do intervalo":""}">${fmt(v,5)}${e!=null?" ± "+fmt(e,2):""}</td>`;
+      cells += `<td class="${w?"warn":""}" title="${w?esc(T("res.endedAtBound")):""}">${fmt(v,5)}${e!=null?" ± "+fmt(e,2):""}</td>`;
     }
     cells += r && r.status==="ok" ? `<td>${fmt(r.chi2,3)}</td><td>${r.r2!=null?r.r2.toFixed(5):"—"}</td>` : "<td></td><td></td>";
     tr.innerHTML = cells;
@@ -903,7 +1250,7 @@ function drawSeries(){
   if (S.mode !== "ser") return;
   const used = S.ser.files.filter(f=>f.use), col = serColors(), sel = S.ser.sel;
   if (!used.length){ clear($("cSerT")); clear($("cSerP")); $("sstats").innerHTML = ""; return; }
-  /* transientes e ajustes */
+  /* transients and fits */
   const series = [];
   for (const f of used){
     const w = serWindow(f), dim = sel && sel !== f;
@@ -911,47 +1258,47 @@ function drawSeries(){
     const r = resultFor(f);
     if (r && r.status==="ok") series.push({type:"line", x:r.t, y:r.curve, color:col.get(f), width: sel===f?2.6:1.6, alpha: dim?0.2:1});
   }
-  plot($("cSerT"), {series, xlabel:"tempo (s)", ylabel: $("snorm").checked ? "I(t)/I(0)" : "sinal"});
+  plot($("cSerT"), {series, xlabel:T("ax.time"), ylabel: $("snorm").checked ? "I(t)/I(0)" : T("ax.signal")});
   const xs = used.map(f=>f.x).filter(v=>v!=null);
-  $("serlegend").textContent = xs.length ? `cor: ${xName()} de ${fmt(Math.min(...xs),3)} (claro) a ${fmt(Math.max(...xs),3)} (escuro)` : "";
-  /* parâmetro × variável da série */
+  $("serlegend").textContent = xs.length ? T("ser.legend", {x:xName(), a:fmt(Math.min(...xs),3), b:fmt(Math.max(...xs),3)}) : "";
+  /* parameter × series variable */
   const key = $("spar").value, j = S.ser.job;
-  if (!key || !j){ clear($("cSerP")); $("sstats").innerHTML = j ? "" : "Ajuste a série para ver os parâmetros em função da " + xName() + "."; return; }
+  if (!key || !j){ clear($("cSerP")); $("sstats").innerHTML = j ? "" : esc(T("ser.fitFirst", {x:xName()})); return; }
   const ratio = key.endsWith("/x"), name = ratio ? key.slice(0,-2) : key;
   const pts = [];
   for (const f of used){ const r = resultFor(f); if (!r || r.status!=="ok" || f.x==null) continue;
     let v = r.params[name], e = (r.sigma||{})[name];
     if (ratio){ v = v / f.x; e = e!=null ? e / f.x : null; }
     pts.push({x:f.x, y:v, e:e??NaN, c:col.get(f), f}); }
-  if (!pts.length){ clear($("cSerP")); $("sstats").innerHTML = "Nenhum transiente ajustado com " + xName() + " definida."; return; }
+  if (!pts.length){ clear($("cSerP")); $("sstats").innerHTML = esc(T("ser.noneFitted", {x:xName()})); return; }
   const st = (j.stats||{})[name], xmax = Math.max(...pts.map(p=>p.x));
-  const ser2 = [], txt = [];
-  if (st && st.kind === "proporcional"){
+  const ser2 = [], txt = [], P = esc(labelOf(name)), X = esc(xName());
+  if (st && st.kind === "proportional"){
     if (ratio){
       ser2.push({type:"line", x:[0, xmax*1.05], y:[st.slope0, st.slope0], color:getVar("--fit"), width:1.5, dash:[6,4]});
-      txt.push(`<b>${labelOf(name)} / ${xName()}</b> = ${fmt(st.slope0,4)} ± ${fmt(st.slope0_err,2)} (inclinação da reta pela origem).`);
+      txt.push(T("ser.slope0", {p:P, x:X, v:fmt(st.slope0,4), e:fmt(st.slope0_err,2)}));
       txt.push(thetaReminder(name));
       const r = st.ratio || []; if (r.length > 1){ const m = r.reduce((a,b)=>a+b,0)/r.length, sd = Math.sqrt(r.reduce((a,b)=>a+(b-m)**2,0)/(r.length-1));
-        txt.push(`Média dos ${r.length} valores: ${fmt(m,4)} ± ${fmt(sd,2)} (desvio-padrão).`); }
+        txt.push(T("ser.meanRatio", {n:r.length, m:fmt(m,4), sd:fmt(sd,2)})); }
     } else {
       ser2.push({type:"line", x:[0, xmax*1.05], y:[0, st.slope0*xmax*1.05], color:getVar("--fit"), width:1.5, dash:[6,4]});
-      txt.push(`Reta pela origem: <b>${labelOf(name)} / ${xName()} = ${fmt(st.slope0,4)} ± ${fmt(st.slope0_err,2)}</b>.`);
+      txt.push(T("ser.line0", {p:P, x:X, v:fmt(st.slope0,4), e:fmt(st.slope0_err,2)}));
       txt.push(thetaReminder(name));
       if (st.line){ const ln = st.line, i0 = Math.abs(ln.intercept) > 2*ln.intercept_err;
-        txt.push(`Reta com intercepto: inclinação ${fmt(ln.slope,4)} ± ${fmt(ln.slope_err,2)}, intercepto ${fmt(ln.intercept,3)} ± ${fmt(ln.intercept_err,2)}` +
-                 (ln.r2!=null?`, R² = ${ln.r2.toFixed(4)}`:"") + "." + (i0 ? ' <span class="warn">O intercepto difere de zero: a dependência pode não ser linear.</span>' : "")); }
+        txt.push(T("ser.line", {s:fmt(ln.slope,4), se:fmt(ln.slope_err,2), i:fmt(ln.intercept,3), ie:fmt(ln.intercept_err,2)}) +
+                 (ln.r2!=null?`, R² = ${ln.r2.toFixed(4)}`:"") + "." + (i0 ? T("ser.interceptWarn") : "")); }
     }
-  } else if (st && st.kind === "constante" && !ratio){
+  } else if (st && st.kind === "constant" && !ratio){
     ser2.push({type:"line", x:[0, xmax*1.05], y:[st.mean, st.mean], color:getVar("--fit"), width:1.5});
     if (isFinite(st.std)) for (const sgn of [-1,1]) ser2.push({type:"line", x:[0, xmax*1.05], y:[st.mean+sgn*st.std, st.mean+sgn*st.std], color:getVar("--fit"), width:1, dash:[4,4], alpha:0.6});
-    txt.push(`<b>Média: ${fmt(st.mean,4)} ± ${fmt(st.std,2)}</b> (desvio-padrão; erro da média ${fmt(st.sem,2)}), ${st.n} transientes.`);
-    if (st.line) txt.push(`Inclinação com a ${xName()}: ${fmt(st.line.slope,3)} ± ${fmt(st.line.slope_err,2)}. ` +
-      (st.trend ? `<span class="warn">Tendência significativa: o parâmetro varia com a ${xName()}.</span>` : "Sem tendência significativa."));
+    txt.push(T("ser.mean", {m:fmt(st.mean,4), sd:fmt(st.std,2), sem:fmt(st.sem,2), n:st.n}));
+    if (st.line) txt.push(T("ser.slopeWith", {x:X, s:fmt(st.line.slope,3), se:fmt(st.line.slope_err,2)}) +
+      (st.trend ? T("ser.trend", {x:X}) : T("ser.noTrend")));
   }
   ser2.push({type:"points", x:pts.map(p=>p.x), y:pts.map(p=>p.y), err:pts.map(p=>p.e), colors:pts.map(p=>p.c), color:"#555", size:4.5});
   if (sel){ const p = pts.find(q=>q.f===sel); if (p) ser2.push({type:"points", x:[p.x], y:[p.y], color:"rgba(0,0,0,0)", size:4.5, ring:getVar("--fit")}); }
   const ys = pts.map(p=>p.y).concat(pts.map(p=>p.y+(isFinite(p.e)?p.e:0)), pts.map(p=>p.y-(isFinite(p.e)?p.e:0)));
-  const prop = st && st.kind==="proporcional" && !ratio;
+  const prop = st && st.kind==="proportional" && !ratio;
   const yr = prop ? [Math.min(0, ...ys), Math.max(0, ...ys)] : undefined;
   plot($("cSerP"), {series:ser2, xr:[0, xmax*1.05], yr, xlabel:shortX(), ylabel: ratio ? `${labelOf(name)} / ${xName()}` : labelOf(name)});
   $("sstats").innerHTML = txt.join("<br>");
@@ -959,14 +1306,14 @@ function drawSeries(){
 
 function seriesBase(){
   const names = S.ser.files.map(f=>f.name.replace(/\.[^.]+$/,""));
-  let p = names[0] || "serie"; for (const n of names) while (!n.startsWith(p)) p = p.slice(0,-1);
-  return (p.replace(/[_\-\s]+$/,"") || "serie");
+  let p = names[0] || T("file.serBase"); for (const n of names) while (!n.startsWith(p)) p = p.slice(0,-1);
+  return (p.replace(/[_\-\s]+$/,"") || T("file.serBase"));
 }
 function exportSeriesCSV(){
   const free = (S.ser.free||[]).map(f=>f.name), lin = new Set(S.model.proportional || S.model.linear || []);
-  const head = ["arquivo", shortX()];
+  const head = [T("csv.ser.file"), shortX()];
   for (const n of free){ head.push(n, "sigma_"+n); if (lin.has(n)) head.push(n+"/x"); }
-  head.push("chi2","R2","no_limite");
+  head.push("chi2","R2",T("csv.ser.atBound"));
   let s = head.join(",") + "\n";
   for (const f of S.ser.files.filter(f=>f.use)){
     const r = resultFor(f); if (!r || r.status!=="ok") continue;
@@ -975,37 +1322,39 @@ function exportSeriesCSV(){
     row.push(r.chi2, r.r2 ?? "", `"${(r.at_bound||[]).join(" ")}"`);
     s += row.join(",") + "\n";
   }
-  download(seriesBase()+"_serie.csv", s);
+  download(seriesBase()+T("file.ser"), s);
 }
 function exportSeriesReport(){
   const j = S.ser.job; if (!j) return;
   const free = (S.ser.free||[]).map(f=>f.name), vals = S.ser.vals || {};
-  let s = `Série de transientes\nModelo: ${S.model.title}\nData: ${new Date().toLocaleString("pt-BR")}\n`;
-  s += `Variável da série: ${shortX()}\nNormalização por I(0): ${$("snorm").checked?"sim":"não"}\n`;
-  s += `Janela: ${$("stmin").value||"início"} a ${$("stmax").value||"fim"} s\nMétodo: ${$("method").selectedOptions[0].text}\n\n`;
-  s += "Parâmetros fixos\n";
-  for (const p of S.model.params) if (!free.includes(p.name)) s += `  ${p.name} (${p.label}${p.unit?", "+p.unit:""}) = ${vals[p.name]}\n`;
-  s += "Parâmetros livres (limites)\n";
-  for (const f of S.ser.free) s += `  ${f.name} (${labelOf(f.name)}): ${f.lo} a ${f.hi}\n`;
-  s += `\nResultados\narquivo\t${shortX()}\t` + free.map(n=>`${n}\tsigma`).join("\t") + "\tchi2\tR2\n";
+  let s = `${T("rep.serTitle")}\n${T("rep.model")}: ${L(S.model.title)}\n${T("rep.date")}: ${new Date().toLocaleString(locale())}\n`;
+  s += `${T("rep.serVar")}: ${shortX()}\n${T("rep.norm")}: ${$("snorm").checked?T("rep.yes"):T("rep.no")}\n`;
+  s += T("rep.window", {a:$("stmin").value||T("win.start"), b:$("stmax").value||T("win.end")}) + `\n${T("rep.method")}: ${$("method").selectedOptions[0].text}\n\n`;
+  s += T("rep.fixedPars") + "\n";
+  for (const p of S.model.params) if (!free.includes(p.name)){ const unit = L(p.unit); s += `  ${p.name} (${L(p.label)}${unit?", "+unit:""}) = ${vals[p.name]}\n`; }
+  s += T("rep.freePars") + "\n";
+  for (const f of S.ser.free) s += `  ${f.name} (${labelOf(f.name)}): ${f.lo} ${T("rep.to")} ${f.hi}\n`;
+  s += `\n${T("rep.results")}\n${T("csv.ser.file")}\t${shortX()}\t` + free.map(n=>`${n}\tsigma`).join("\t") + "\tchi2\tR2\n";
   for (const f of S.ser.files.filter(f=>f.use)){ const r = resultFor(f); if (!r) continue;
-    if (r.status!=="ok"){ s += `${f.name}\t${f.x??""}\t${r.status}\n`; continue; }
+    if (r.status!=="ok"){ s += `${f.name}\t${f.x??""}\t${statusText(r.status)}\n`; continue; }
     s += `${f.name}\t${f.x??""}\t` + free.map(n=>`${r.params[n]}\t${(r.sigma||{})[n]??""}`).join("\t") + `\t${r.chi2}\t${r.r2??""}\n`; }
   s += thetaText();
-  s += "\nEstatística da série\n";
+  s += "\n" + T("rep.stats") + "\n";
   for (const [n, st] of Object.entries(j.stats||{})){
-    if (st.kind === "proporcional"){
-      s += `  ${n} (${labelOf(n)}): ${n}/x pela origem = ${st.slope0} ± ${st.slope0_err}\n`;
-      if (st.line) s += `      reta com intercepto: inclinação ${st.line.slope} ± ${st.line.slope_err}, intercepto ${st.line.intercept} ± ${st.line.intercept_err}, R² = ${st.line.r2}\n`;
+    if (st.kind === "proportional"){
+      s += T("rep.prop", {n, l:labelOf(n), v:st.slope0, e:st.slope0_err}) + "\n";
+      if (st.line) s += T("rep.propLine", {s:st.line.slope, se:st.line.slope_err, i:st.line.intercept, ie:st.line.intercept_err, r2:st.line.r2}) + "\n";
     } else {
-      s += `  ${n} (${labelOf(n)}): média ${st.mean} ± ${st.std} (desvio-padrão), erro da média ${st.sem}, n = ${st.n}\n`;
-      if (st.line) s += `      inclinação com x: ${st.line.slope} ± ${st.line.slope_err}${st.trend?" (significativa)":""}\n`;
+      s += T("rep.const", {n, l:labelOf(n), m:st.mean, sd:st.std, sem:st.sem, k:st.n}) + "\n";
+      if (st.line) s += T("rep.constLine", {s:st.line.slope, se:st.line.slope_err, sig:st.trend?T("rep.significant"):""}) + "\n";
     }
   }
-  download(seriesBase()+"_serie_relatorio.txt", s);
+  download(seriesBase()+T("file.serReport"), s);
 }
 
-/* ---------- eventos ---------- */
+/* ---------- events ---------- */
+$("langPT").onclick = () => setLang("pt");
+$("langEN").onclick = () => setLang("en");
 $("drop").onclick = () => $("file").click();
 $("drop").onkeydown = e => { if (e.key==="Enter"||e.key===" "){ e.preventDefault(); $("file").click(); } };
 $("file").onchange = async e => { const f=e.target.files[0]; if (f) loadText(f.name, await f.text()); e.target.value=""; };
@@ -1014,7 +1363,7 @@ for (const ev of ["dragleave","drop"]) $("drop").addEventListener(ev, e=>{e.prev
 $("drop").addEventListener("drop", async e => { const f=e.dataTransfer.files[0]; if (f) loadText(f.name, await f.text()); });
 $("colT").onchange = $("colY").onchange = $("norm").onchange = applyColumns;
 $("tmin").onchange = $("tmax").onchange = () => { S.curve=null; updateStats(); redraw(); };
-$("model").onchange = () => { S.model = S.models.find(m=>m.key===$("model").value); renderModel(); updateStats(); };
+$("model").onchange = () => { S.model = S.models.find(m=>m.key===$("model").value); S.lastResult = null; renderModel(); updateStats(); };
 $("sim").onclick = simulate;
 $("fit").onclick = () => S.mode === "ser" ? startSeries() : startFit();
 $("stop").onclick = () => {
@@ -1041,34 +1390,32 @@ $("spar").onchange = drawSeries;
 $("sexp").onclick = exportSeriesCSV; $("srep").onclick = exportSeriesReport;
 $("exp").onclick = exportCSV; $("rep").onclick = exportReport;
 $("sx").onchange = $("sy").onchange = drawJob;
-const METHOD_HINT = {
-  "auto": "Os θ (e I0) entram linearmente na fase: o programa varre os demais parâmetros livres e ajusta os θ em cada ponto. Com mais de dois parâmetros livres além dos θ e de I0, usa o enxame, com as opções abaixo.",
-  "pso+lm": "Enxame para a busca global, repetido em várias rodadas, e Levenberg–Marquardt para refinar.",
-  "pso": "Só o enxame, sem refinamento local nem incertezas.",
-  "lm": "Refinamento local a partir dos valores atuais. Rápido, mas depende de um bom ponto de partida."};
-$("method").onchange = () => { $("methodhint").textContent = METHOD_HINT[$("method").value]; };
-$("method").onchange();
+$("method").onchange = () => { $("methodhint").textContent = T("hint." + $("method").value); };
 new ResizeObserver(() => S.mode === "ser" ? drawSeries() : redraw()).observe(document.querySelector(".app"));
 
-setInterval(() => fetch("/api/ping").catch(()=>{}), 5000);  /* o aplicativo encerra sem pings */
+setInterval(() => fetch("/api/ping").catch(()=>{}), 5000);  /* the application exits without pings */
 (async function init(){
+  applyStatic();
+  $("xlabel").value = T("ser.xdefault");
+  $("method").onchange();
+  setState("state", "state.start"); setState("sstate", "sstate.start");
   S.models = await api("/api/models");
-  $("model").innerHTML = S.models.map(m=>`<option value="${m.key}">${m.title}</option>`).join("");
+  $("model").innerHTML = S.models.map(m=>`<option value="${m.key}">${esc(L(m.title))}</option>`).join("");
   S.model = S.models[0]; renderModel();
   const ex = await api("/api/examples");
-  $("examples").innerHTML = ex.map(n=>`<button class="btn" style="padding:2px 8px;font-size:12.5px" data-ex="${n}">${n.replace(/\.dat$/,"").replace(/_/g," ")}</button>`).join(" ");
+  $("examples").innerHTML = ex.map(n=>`<button class="btn" style="padding:2px 8px;font-size:12.5px" data-ex="${esc(n)}">${esc(n.replace(/\.dat$/,"").replace(/_/g," "))}</button>`).join(" ");
   for (const b of $("examples").querySelectorAll("button")) b.onclick = async () => {
     const r = await api("/api/example/"+b.dataset.ex);
-    if (r.model && r.model !== S.model.key){ $("model").value = r.model; S.model = S.models.find(m=>m.key===r.model); renderModel(); }
+    if (r.model && r.model !== S.model.key){ $("model").value = r.model; S.model = S.models.find(m=>m.key===r.model); S.lastResult = null; renderModel(); }
     if (r.preset && (S.model.presets||{})[r.preset]) applyPreset(r.preset);
     for (const [n,v] of Object.entries(r.params||{})) setValue(n, v);
     await loadText(r.name, r.text);
   };
   const sex = await api("/api/series-examples");
-  $("sexamples").innerHTML = sex.map((d,k)=>`<button class="btn" style="padding:2px 8px;font-size:12.5px" data-k="${k}">${d.name.replace(/^serie_/,"").replace(/_/g," ")}</button>`).join(" ");
-  const exLabel = d => "Exemplo: série sintética " + d.name.replace(/^serie_/,"").replace(/_/g," ");
+  $("sexamples").innerHTML = sex.map((d,k)=>`<button class="btn" style="padding:2px 8px;font-size:12.5px" data-k="${k}">${esc(d.name.replace(/^serie_/,"").replace(/_/g," "))}</button>`).join(" ");
+  const exLabel = d => T("ser.exLabel", {name:d.name.replace(/^serie_/,"").replace(/_/g," ")});
   for (const b of $("sexamples").querySelectorAll("button")) b.onclick = () => loadSeriesTexts(sex[+b.dataset.k].files, exLabel(sex[+b.dataset.k]));
-  /* o modo Série já abre com uma série de exemplo, para mostrar como funciona */
+  /* Series mode opens with an example series already loaded, to show how it works */
   const first = sex.find(d => d.name === "serie_vidro_volts") || sex[0];
   if (first) await loadSeriesTexts(first.files, exLabel(first));
   redraw();

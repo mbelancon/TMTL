@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "tlfit"
 version = "2.2.1"
-description = "Ajuste de transientes de lente térmica e espelho térmico (TLLAM, TM-HAM on/off)"
+description = "Fitting of time-resolved thermal lens and thermal mirror transients (TL, TM, TL-Fluid models)"
 readme = "README.md"
 requires-python = ">=3.9"
 license = "GPL-3.0-or-later"

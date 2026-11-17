@@ -1,4 +1,4 @@
-# Imagem para hospedar a interface (Hugging Face Spaces, Render, servidor do laboratório…)
+# Image to host the interface (Hugging Face Spaces, Render, a lab server…)
 FROM python:3.12-slim
 RUN pip install --no-cache-dir numpy scipy
 WORKDIR /app

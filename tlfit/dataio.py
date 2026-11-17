@@ -1,21 +1,23 @@
-"""Leitura tolerante de transientes (txt/dat/csv, vírgula decimal, cabeçalhos)."""
+"""Tolerant reading of transients (txt/dat/csv, decimal comma, headers)."""
 from __future__ import annotations
 
 import re
 
 import numpy as np
 
+from .i18n import Msg
+
 _num = re.compile(r"^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$")
 
 
 def parse_table(text: str):
-    """Devolve (matriz numérica, nomes de colunas). Ignora linhas não numéricas."""
+    """Returns (numeric matrix, column names). Ignores non-numeric lines."""
     lines = [ln.strip() for ln in text.replace("\r", "\n").split("\n")]
     lines = [ln for ln in lines if ln and not ln.startswith(("#", "%", "//"))]
     if not lines:
-        raise ValueError("arquivo vazio")
+        raise ValueError(Msg("empty file"))
     sample = "\n".join(lines[:50])
-    # separador: ';' ou tab têm prioridade; com vírgula, decide se é decimal
+    # separator: ';' or tab take priority; with a comma, decide whether it is decimal
     if ";" in sample:
         sep, decimal_comma = ";", "," in sample
     elif "," in sample:
@@ -38,16 +40,16 @@ def parse_table(text: str):
         elif not rows and header is None:
             header = parts
     if not rows:
-        raise ValueError("nenhuma linha numérica encontrada")
+        raise ValueError(Msg("no numeric line found"))
     ncol = max(set(len(r) for r in rows), key=[len(r) for r in rows].count)
     data = np.array([r for r in rows if len(r) == ncol], float)
     if header is None or len(header) != ncol:
-        header = [f"coluna {i + 1}" for i in range(ncol)]
+        header = [Msg("column {i}", i=i + 1) for i in range(ncol)]
     return data, header
 
 
 # ---------------------------------------------------------------------------
-# Potência de excitação de cada transiente (para séries)
+# Excitation power of each transient (for series)
 # ---------------------------------------------------------------------------
 
 _UNIT = {"w": 1e3, "mw": 1.0, "uw": 1e-3, "µw": 1e-3}
@@ -63,23 +65,24 @@ def _tofloat(s):
 
 
 def guess_power(name: str, text: str = ""):
-    """Potência em mW a partir do nome do arquivo ou do cabeçalho.
+    """Power in mW from the file name or from the header.
 
-    Ordem: número com unidade no nome ('vidro_150mW.dat', '0,2W.txt'); linha de
-    cabeçalho ('# Potência: 150 mW', 'P = 0.15 W'); número após 'P' no nome ('P150').
-    Sem unidade, assume mW. Devolve (valor em mW ou None, de onde veio)."""
+    Order: number with unit in the name ('glass_150mW.dat', '0,2W.txt'); header
+    line ('# Power: 150 mW', '# Potência: 150 mW', 'P = 0.15 W'); number after 'P' in the
+    name ('P150'). Without a unit, mW is assumed. Returns (value in mW or None, source),
+    with source "name", "header" or "name_nounit" (translated by the interface)."""
     stem = re.sub(r"\.[A-Za-z0-9]+$", "", name)
     m = _WITH_UNIT.search(stem)
     if m:
-        return _tofloat(m.group(1)) * _UNIT[m.group(2).lower()], "nome"
+        return _tofloat(m.group(1)) * _UNIT[m.group(2).lower()], "name"
     for ln in text.splitlines()[:30]:
         s = ln.strip()
         if not s or not (s[0] in "#%/" or re.match(r"[A-Za-zÀ-ú]", s)):
             continue
         h = _HEADER.search(s)
         if h:
-            return _tofloat(h.group(1)) * _UNIT[(h.group(2) or "mW").lower()], "cabeçalho"
+            return _tofloat(h.group(1)) * _UNIT[(h.group(2) or "mW").lower()], "header"
     m = _P_PREFIX.search(stem)
     if m:
-        return _tofloat(m.group(1)), "nome (sem unidade: mW)"
+        return _tofloat(m.group(1)), "name_nounit"
     return None, ""

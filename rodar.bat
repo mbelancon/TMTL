@@ -1,20 +1,20 @@
 @echo off
-rem Roda o TMTL2 direto do codigo (sem gerar executavel).
-rem Procura o Python do Miniconda/Anaconda do usuario, depois o do PATH.
-rem Opcional, para abrir em janela propria:  pip install pywebview
+rem Runs TMTL2 directly from the source code.
+rem Looks for the user's Miniconda/Anaconda Python, then the one on PATH.
+rem Optional, to open in its own window:  pip install pywebview
 setlocal
 cd /d "%~dp0"
 set PYTHONUTF8=1
-call :achar_python
-if not defined PY goto :sem_python
-rem pastas do conda no PATH (DLLs do numpy/scipy), como faz o Anaconda Prompt
+call :find_python
+if not defined PY goto :no_python
+rem conda folders on PATH (numpy/scipy DLLs), as the Anaconda Prompt does
 for %%D in ("%PY%") do set "PATH=%%~dpD;%%~dpDLibrary\bin;%%~dpDScripts;%PATH%"
-echo Usando %PY%
+echo Using %PY%
 "%PY%" app.py %*
 if errorlevel 1 pause
 exit /b
 
-:achar_python
+:find_python
 for %%P in (
     "%USERPROFILE%\miniconda3\python.exe"
     "%USERPROFILE%\anaconda3\python.exe"
@@ -33,10 +33,10 @@ if not defined PY (
 )
 exit /b
 
-:sem_python
+:no_python
 echo.
-echo Nao encontrei um Python com numpy e scipy.
-echo Abra o "Anaconda Prompt", va ate esta pasta e rode:  python app.py
-echo (ou instale as bibliotecas com:  pip install numpy scipy)
+echo No Python with numpy and scipy was found.
+echo Open the "Anaconda Prompt", go to this folder and run:  python app.py
+echo (or install the libraries with:  pip install numpy scipy)
 pause
 exit /b 1

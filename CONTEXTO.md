@@ -1,6 +1,7 @@
 # CONTEXTO — TMTL2 (pacote tlfit)
 
-Arquivo para o Claude (e para quem for mexer no código). Curto e atualizado; o README é para usuários.
+Estado atual do projeto, para o Claude e para quem for mexer no código. As regras estáveis ficam em
+`CLAUDE.md` (que importa este arquivo); o README é para usuários.
 Fica na raiz do repositório; a cópia `CONTEXTO_TMTL.md` nos arquivos do projeto deve acompanhar esta.
 
 ## Objetivo
@@ -9,10 +10,11 @@ gráfica e ajuste de séries (vários transientes em potências diferentes → p
 que é a análise usual do grupo). Distribuição para colaboradores via GitHub.
 
 ## Estrutura
-- `tlfit/` — `models.py`, `optim.py`, `batch.py`, `dataio.py`, `server.py` + `static/` (interface), `examples/`
-- `app.py`, `rodar.bat`, `montar_portatil.bat`, `Dockerfile`, `tests/`
+- `tlfit/` — `models.py`, `optim.py`, `batch.py`, `dataio.py`, `server.py`, `i18n.py` + `static/` (interface), `examples/`
+- `CLAUDE.md` (regras), `app.py`, `rodar.bat`, `montar_portatil.bat`, `Dockerfile`, `tests/`
 - `CHANGELOG.md` — rascunho das notas de cada versão (copiar na página de Releases)
-- `docs/METODOS_MATEMATICOS.md` — física e numérica dos modelos (ler antes de mexer em `models.py`)
+- `docs/MATH_METHODS.md` (inglês) e `docs/METODOS_MATEMATICOS.md` (português) — física e numérica dos modelos (ler antes de mexer em `models.py`); manter os dois iguais
+- `README.md` (inglês) e `README.pt-BR.md` (português); manter os dois iguais
 - `legado/` — referência histórica; o código em C foi abandonado (TMTL2 é só Python desde a v2.0.0)
 - Versão atual no `pyproject.toml` (2.2.1 em nov/2026); licença GPL-3
 
@@ -21,12 +23,13 @@ que é a análise usual do grupo). Distribuição para colaboradores via GitHub.
 - Cada modelo só implementa `kernel(t, a, p, acc)`; a difração é comum. Exceções: TL de Shen (fechado) e lente de população (`direct_phase`)
 - θ entram linearmente em K → ajuste em dois níveis (`PhaseCache`); desligamento = K(t) − K(t − t_off)
 - Aceleração: Φ = K·M com M em cache por geometria; Gauss–Legendre por painéis; g adaptativo com subdivisão em cache; núcleos em forma fechada; tabelas de Talbot + spline no TM+TL-Fluid completo
-- Modelo novo: escrever o núcleo, a seção em `docs/METODOS_MATEMATICOS.md` e um exemplo em `tlfit/examples/`
+- Checklist de modelo novo: ver `CLAUDE.md`
 
-## Convenções de nomes
-- TM = espelho térmico, TL = lente térmica
-- Sólido + fluido (ar/água): TL+TL-Fluid ou TM+TL-Fluid. O fluido só contribui com TL; nunca existe "TM no fluido"
-- LAM/BAM/HAM = Low/Beer/High Absorption Model (Sato et al., 2008)
+## Idiomas
+- Repositório em inglês (código, comentários, mensagens, docs); este CONTEXTO, os nomes `rodar.bat`, `montar_portatil.bat`, `ferramentas/` e os ids dos modelos (`tmfinito`, `tlbranq`...) continuam em português
+- Interface em inglês e português: idioma do sistema por padrão, botões PT/EN, escolha guardada no `localStorage` (`tlfit-lang`). Textos do HTML no dicionário `I18N` de `static/index.html`
+- Mensagens do Python: `Msg` (str em inglês com campos) traduzida por `tr(msg, lang)` com o dicionário `PT` de `i18n.py`; o servidor recebe `lang` na query ou no corpo do POST
+- `tests/validate.py` falha se algum texto de modelo não tiver tradução em `PT`
 
 ## Decisões
 - Distribuição: zip portátil Windows (Python embutido, não precisa instalar) + código-fonte; não usar PyInstaller

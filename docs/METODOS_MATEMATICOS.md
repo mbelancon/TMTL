@@ -1,9 +1,11 @@
 # Métodos matemáticos
 
+*[English](MATH_METHODS.md) · Português*
+
 Este documento descreve o que os modelos do `tlfit` calculam, por que a **fase** é a única coisa
 que muda de um modelo para outro e quais técnicas numéricas tornam o cálculo rápido. As equações
 seguem o código de [`tlfit/models.py`](../tlfit/models.py) (a notação entre crases é a do código);
-as referências de cada modelo estão na tabela de Modelos do [README](../README.md#modelos).
+as referências de cada modelo estão na tabela de Modelos do [README](../README.pt-BR.md#modelos).
 
 Convenção de nomes: **TL** = lente térmica, **TM** = espelho térmico, **+TL-Fluid** = lente térmica
 do fluido em contato com a amostra (o fluido só contribui com TL; não há TM no fluido).
@@ -396,7 +398,7 @@ acoplamento completo). No HAM on/off a diferença é escrita em forma fechada.
 ## 5. Técnicas no ajuste
 
 Implementadas em [`tlfit/optim.py`](../tlfit/optim.py) e em `PhaseCache` (`models.py`); a descrição
-para o usuário está no README, em [Método de ajuste](../README.md#método-de-ajuste).
+para o usuário está no README, em [Método de ajuste](../README.pt-BR.md#método-de-ajuste).
 
 - **Fase linear nos $`\theta`$.** Para os parâmetros não lineares fixos (tipicamente $`D`$),
   $`\Phi = \Phi_0 + \sum_j\theta_j\Phi_j`$, com $`\Phi_j = K_j\cdot M`$ e $`K_j`$ o núcleo com $`\theta_j = 1`$.

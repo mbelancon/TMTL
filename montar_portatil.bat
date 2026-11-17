@@ -1,7 +1,7 @@
 @echo off
-rem Monta a versao portatil do TMTL2 (Python embutido + numpy + scipy + programa).
-rem Precisa de internet. O resultado fica em %USERPROFILE%\TMTL2-portatil
-rem (fora do ownCloud/OneDrive: sao ~150 MB e milhares de arquivos).
+rem Builds the portable version of TMTL2 (embedded Python + numpy + scipy + program).
+rem Needs internet. The result goes to %USERPROFILE%\TMTL2-portable
+rem (outside ownCloud/OneDrive: ~150 MB and thousands of files).
 cd /d "%~dp0"
 powershell -NoProfile -ExecutionPolicy Bypass -File "ferramentas\montar_portatil.ps1" %*
 pause
