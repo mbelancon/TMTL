@@ -335,6 +335,7 @@ print(res["params"]["d"], res["sigma"]["d"])
     tlfit/examples/     transientes e séries de exemplo
     tests/              validação contra o código original
     docs/               métodos matemáticos (equações dos modelos e técnicas numéricas), em inglês e português
+    CLAUDE.md           regras para trabalhar no código com o Claude Code (importa o CONTEXTO.md)
     CONTEXTO.md         contexto curto para quem for mexer no código (decisões, convenções)
 
 ## Referências

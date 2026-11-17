@@ -347,6 +347,7 @@ Log messages are `tlfit.i18n.Msg` objects (they behave as English strings);
     tlfit/examples/     example transients and series
     tests/              validation against the original code
     docs/               mathematical methods (model equations and numerical techniques), in English and Portuguese
+    CLAUDE.md           rules for working on the code with Claude Code (imports CONTEXTO.md; in Portuguese)
     CONTEXTO.md         short context for whoever works on the code (decisions, conventions; in Portuguese)
     CHANGELOG.md        changes per version
 

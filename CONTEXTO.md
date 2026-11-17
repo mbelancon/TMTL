@@ -1,6 +1,7 @@
 # CONTEXTO — TMTL2 (pacote tlfit)
 
-Arquivo para o Claude (e para quem for mexer no código). Curto e atualizado; o README é para usuários.
+Estado atual do projeto, para o Claude e para quem for mexer no código. As regras estáveis ficam em
+`CLAUDE.md` (que importa este arquivo); o README é para usuários.
 Fica na raiz do repositório; a cópia `CONTEXTO_TMTL.md` nos arquivos do projeto deve acompanhar esta.
 
 ## Objetivo
@@ -10,7 +11,7 @@ que é a análise usual do grupo). Distribuição para colaboradores via GitHub.
 
 ## Estrutura
 - `tlfit/` — `models.py`, `optim.py`, `batch.py`, `dataio.py`, `server.py`, `i18n.py` + `static/` (interface), `examples/`
-- `app.py`, `rodar.bat`, `montar_portatil.bat`, `Dockerfile`, `tests/`
+- `CLAUDE.md` (regras), `app.py`, `rodar.bat`, `montar_portatil.bat`, `Dockerfile`, `tests/`
 - `CHANGELOG.md` — rascunho das notas de cada versão (copiar na página de Releases)
 - `docs/MATH_METHODS.md` (inglês) e `docs/METODOS_MATEMATICOS.md` (português) — física e numérica dos modelos (ler antes de mexer em `models.py`); manter os dois iguais
 - `README.md` (inglês) e `README.pt-BR.md` (português); manter os dois iguais
@@ -22,12 +23,7 @@ que é a análise usual do grupo). Distribuição para colaboradores via GitHub.
 - Cada modelo só implementa `kernel(t, a, p, acc)`; a difração é comum. Exceções: TL de Shen (fechado) e lente de população (`direct_phase`)
 - θ entram linearmente em K → ajuste em dois níveis (`PhaseCache`); desligamento = K(t) − K(t − t_off)
 - Aceleração: Φ = K·M com M em cache por geometria; Gauss–Legendre por painéis; g adaptativo com subdivisão em cache; núcleos em forma fechada; tabelas de Talbot + spline no TM+TL-Fluid completo
-- Modelo novo: escrever o núcleo, a seção nos dois docs de métodos, um exemplo em `tlfit/examples/` e as traduções em `tlfit/i18n.py`
-
-## Convenções de nomes
-- TM = espelho térmico, TL = lente térmica
-- Sólido + fluido (ar/água): TL+TL-Fluid ou TM+TL-Fluid. O fluido só contribui com TL; nunca existe "TM no fluido"
-- LAM/BAM/HAM = Low/Beer/High Absorption Model (Sato et al., 2008)
+- Checklist de modelo novo: ver `CLAUDE.md`
 
 ## Idiomas
 - Repositório em inglês (código, comentários, mensagens, docs); este CONTEXTO, os nomes `rodar.bat`, `montar_portatil.bat`, `ferramentas/` e os ids dos modelos (`tmfinito`, `tlbranq`...) continuam em português

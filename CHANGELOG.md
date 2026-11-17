@@ -15,6 +15,8 @@ Draft of the notes of each version, to copy to the Releases page when the tag is
   `TMTL2-<version>-portable-windows.zip` and the default build folder is `%USERPROFILE%\TMTL2-portable`.
 - Water and air presets renamed "Water" and "Air" (the old names are still accepted), and the
   `# tlfit:` line of the examples accepts `model=` besides `modelo=`.
+- `CLAUDE.md` with the stable rules for working on the code (naming, checklist for new models,
+  both languages); `CONTEXTO.md` keeps the current state.
 - Mathematical methods: equations in LaTeX rendered by GitHub (PR #10).
 - **Naming:** "TM+TM-Fluid" corrected to **TM+TL-Fluid** in the interface, the README and the
   tests. The fluid always contributes a thermal lens; there is no thermal mirror in the fluid (#7, PR #8).
